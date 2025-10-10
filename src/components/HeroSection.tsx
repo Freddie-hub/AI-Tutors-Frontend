@@ -6,14 +6,15 @@ export default function HeroSection() {
     <section className="relative h-screen w-full overflow-hidden">
       {/* Background image */}
       <Image
-        src="/Hero option 1.jpg"
+        src="/hero.jpg"
         alt="Restaurant background"
         fill
         className="object-cover"
         priority
       />
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" />
+
+      {/* Darker overlay */}
+      <div className="absolute inset-0 bg-black/60" />
 
       {/* Navbar */}
       <Navbar />
