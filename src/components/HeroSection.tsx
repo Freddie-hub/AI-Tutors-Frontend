@@ -19,7 +19,7 @@ export default function HeroSection() {
           Learn anything, anytime, anywhere.
         </h1>
 
-        <div className="relative w-full flex justify-center items-center mt-2 md:mt-10 h-72 md:h-96">
+        <div className="relative w-full flex justify-center items-center mt-2 md:mt-2 h-72 md:h-96">
           {/* Left Card */}
           <div className="absolute top-1/2 -translate-y-1/2 -translate-x-[90%] md:-translate-x-[100%] w-60 h-40 md:w-80 md:h-52 rounded-2xl overflow-hidden shadow-xl hover:scale-105 transition duration-300 bg-white/10 backdrop-blur-sm border border-white/20 z-10">
             <Image
