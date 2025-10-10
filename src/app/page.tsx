@@ -1,8 +1,10 @@
-import Image from "next/image";
-import Navbar from "@/components/Navbar";
+import HeroSection from "@/components/HeroSection";
+import IntroSection from "@/components/IntroSection";
 
 export default function Home() {
   return (
-    <Navbar />
+    <main className="overflow-x-hidden">
+      <HeroSection />
+    </main>
   );
 }
