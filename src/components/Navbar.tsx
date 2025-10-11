@@ -40,11 +40,11 @@ export default function Navbar() {
             <a
               key={link.name}
               href={link.href}
-              className={`relative transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:transition-all after:duration-300
+              className={`relative text-white transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:transition-all after:duration-300
                 ${
                   isActive
-                    ? "text-orange-400 after:w-full after:bg-orange-400"
-                    : "text-white hover:text-orange-400 after:w-0 hover:after:w-full after:bg-orange-400"
+                    ? "after:w-full after:bg-orange-400"
+                    : "after:w-0 hover:after:w-full after:bg-orange-400"
                 }`}
             >
               {link.name}
