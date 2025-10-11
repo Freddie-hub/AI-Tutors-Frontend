@@ -88,6 +88,12 @@ export interface UserProfile {
     learningStyle?: string;
     subjects?: string[];
     difficulty?: 'beginner' | 'intermediate' | 'advanced';
+    // Student onboarding specific fields
+    age?: number;
+    curriculum?: 'CBC' | 'British' | 'Adaptive';
+    grade?: string;
+    learningGoal?: string;
+    preferredMode?: 'AI Autopilot';
   };
 }
 
@@ -102,6 +108,9 @@ export interface Institution {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Institution onboarding specific fields
+  region?: string;
+  numberOfStudents?: number;
   settings?: {
     allowSelfRegistration: boolean;
     requireEmailVerification: boolean;

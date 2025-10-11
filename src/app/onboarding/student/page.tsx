@@ -1,11 +1,70 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthUser } from '@/lib/hooks';
+import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
+import { userService } from '@/lib/auth';
+
+type CurriculumType = 'CBC' | 'British' | 'Adaptive';
+
+interface StudentProfile {
+  fullName: string;
+  age: string;
+  curriculum: CurriculumType | '';
+  grade: string;
+  learningGoal: string;
+  preferredMode: 'AI Autopilot';
+}
+
+const curriculumOptions = [
+  { 
+    value: 'CBC' as CurriculumType, 
+    label: 'CBC (Competency-Based Curriculum)', 
+    description: 'Kenya\'s current curriculum focusing on competency development'
+  },
+  { 
+    value: 'British' as CurriculumType, 
+    label: 'British Curriculum', 
+    description: 'International curriculum with IGCSE and A-Level pathways'
+  },
+  { 
+    value: 'Adaptive' as CurriculumType, 
+    label: 'Adaptive Learning', 
+    description: 'AI-powered personalized curriculum that adapts to your pace'
+  }
+];
+
+const gradeOptions = {
+  CBC: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9'],
+  British: ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5', 'Year 6', 'Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12', 'Year 13'],
+  Adaptive: ['Beginner', 'Elementary', 'Intermediate', 'Advanced', 'Expert']
+};
+
+const learningGoalOptions = [
+  'Improve my grades and academic performance',
+  'Prepare for important exams (KCPE, KCSE, IGCSE, A-Levels)',
+  'Learn new skills and explore different subjects',
+  'Get personalized tutoring in challenging subjects',
+  'Build confidence and study habits',
+  'Accelerate my learning beyond grade level',
+  'Catch up on missed concepts and topics',
+  'Explore career paths and university preparation'
+];
 
 export default function StudentOnboardingPage() {
   const router = useRouter();
-  const { user, profile, loading } = useAuthUser();
+  const { user, loading } = useAuthUser();
+  const { withErrorHandling, loading: actionLoading, error } = useAuthActions();
+  const [currentStep, setCurrentStep] = useState(1);
+  
+  const form = useFormState<StudentProfile>({
+    fullName: '',
+    age: '',
+    curriculum: '',
+    grade: '',
+    learningGoal: '',
+    preferredMode: 'AI Autopilot'
+  });
 
   if (loading) {
     return (
@@ -23,6 +82,89 @@ export default function StudentOnboardingPage() {
     return null;
   }
 
+  const validateStep = (step: number): boolean => {
+    form.clearErrors();
+    
+    switch (step) {
+      case 1:
+        let isValid = true;
+        if (!form.values.fullName.trim()) {
+          form.setError('fullName', 'Please enter your full name');
+          isValid = false;
+        }
+        if (!form.values.age || parseInt(form.values.age) < 5 || parseInt(form.values.age) > 25) {
+          form.setError('age', 'Please enter a valid age between 5 and 25');
+          isValid = false;
+        }
+        return isValid;
+      
+      case 2:
+        if (!form.values.curriculum) {
+          form.setError('curriculum', 'Please select a curriculum');
+          return false;
+        }
+        if (!form.values.grade) {
+          form.setError('grade', 'Please select your grade/year');
+          return false;
+        }
+        return true;
+      
+      case 3:
+        if (!form.values.learningGoal) {
+          form.setError('learningGoal', 'Please select your learning goal');
+          return false;
+        }
+        return true;
+      
+      default:
+        return true;
+    }
+  };
+
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    setCurrentStep(currentStep - 1);
+  };
+
+  const handleSubmit = async () => {
+    if (!validateStep(3)) return;
+
+    const result = await withErrorHandling(async () => {
+      // Update user profile with onboarding data
+      await userService.updateUserProfile(user.uid, {
+        displayName: form.values.fullName,
+        onboarded: true,
+        preferences: {
+          age: parseInt(form.values.age),
+          curriculum: form.values.curriculum as CurriculumType,
+          grade: form.values.grade,
+          learningGoal: form.values.learningGoal,
+          preferredMode: form.values.preferredMode
+        }
+      });
+
+      // Redirect to student dashboard
+      router.push('/dashboard/student');
+    });
+
+    if (!result) {
+      // Error is handled by useAuthActions
+      console.error('Failed to complete onboarding');
+    }
+  };
+
+  const getAvailableGrades = () => {
+    if (!form.values.curriculum) return [];
+    return gradeOptions[form.values.curriculum as CurriculumType] || [];
+  };
+
+  const progressPercentage = (currentStep / 3) * 100;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
       {/* Background Effects */}
@@ -33,65 +175,277 @@ export default function StudentOnboardingPage() {
 
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center py-12 px-4">
         {/* Header */}
-        <div className="text-center mb-16 max-w-2xl">
+        <div className="text-center mb-8 max-w-2xl">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl mb-6">
             <span className="text-2xl">🎓</span>
           </div>
-          <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-            Individual Student Setup
+          <h1 className="text-4xl font-bold text-white mb-4 tracking-tight">
+            Let's set up your learning journey!
           </h1>
-          <p className="text-xl text-slate-300 leading-relaxed">
-            Let's personalize your learning experience with AI-powered content tailored just for you.
+          <p className="text-lg text-slate-300">
+            Tell us about yourself so we can create the perfect AI-powered learning experience just for you.
           </p>
         </div>
 
-        {/* Onboarding Card */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 max-w-2xl w-full">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-6">Coming Soon</h2>
-            <p className="text-slate-300 mb-8">
-              We're building an amazing onboarding experience for individual students. 
-              This will include learning preference setup, subject selection, and AI tutor customization.
-            </p>
-            
-            <div className="space-y-4 text-left">
-              <div className="flex items-center text-slate-300">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Learning style assessment</span>
-              </div>
-              <div className="flex items-center text-slate-300">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Subject and skill level selection</span>
-              </div>
-              <div className="flex items-center text-slate-300">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>AI tutor personality customization</span>
-              </div>
-              <div className="flex items-center text-slate-300">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Learning goals and schedule setup</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => router.push('/dashboard/student')}
-              className="mt-8 w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-6 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 font-medium"
-            >
-              Skip to Dashboard
-            </button>
+        {/* Progress Bar */}
+        <div className="w-full max-w-2xl mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-slate-400">Step {currentStep} of 3</span>
+            <span className="text-sm text-slate-400">{Math.round(progressPercentage)}% Complete</span>
+          </div>
+          <div className="w-full bg-slate-700 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progressPercentage}%` }}
+            ></div>
           </div>
         </div>
 
-        {/* Back Button */}
-        <button
-          onClick={() => router.push('/onboarding/choose-role')}
-          className="mt-8 text-slate-400 hover:text-white transition-colors duration-200 flex items-center"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to role selection
-        </button>
+        {/* Form Card */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 max-w-2xl w-full">
+          {/* Step 1: Personal Information */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-white mb-2">Tell us about yourself</h2>
+                <p className="text-slate-300">Let's start with some basic information</p>
+              </div>
+
+              {/* Full Name */}
+              <div>
+                <label htmlFor="fullName" className="block text-sm font-medium text-slate-200 mb-2">
+                  What's your full name? <span className="text-red-400">*</span>
+                </label>
+                <input
+                  id="fullName"
+                  type="text"
+                  value={form.values.fullName}
+                  onChange={(e) => form.setValue('fullName', e.target.value)}
+                  className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                    form.errors.fullName ? 'border-red-400' : 'border-white/20'
+                  }`}
+                  placeholder="Enter your full name"
+                />
+                {form.errors.fullName && (
+                  <p className="mt-1 text-sm text-red-400">{form.errors.fullName}</p>
+                )}
+              </div>
+
+              {/* Age */}
+              <div>
+                <label htmlFor="age" className="block text-sm font-medium text-slate-200 mb-2">
+                  How old are you? <span className="text-red-400">*</span>
+                </label>
+                <input
+                  id="age"
+                  type="number"
+                  min="5"
+                  max="25"
+                  value={form.values.age}
+                  onChange={(e) => form.setValue('age', e.target.value)}
+                  className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                    form.errors.age ? 'border-red-400' : 'border-white/20'
+                  }`}
+                  placeholder="Enter your age"
+                />
+                {form.errors.age && (
+                  <p className="mt-1 text-sm text-red-400">{form.errors.age}</p>
+                )}
+                <p className="mt-1 text-xs text-slate-400">Ages 5-25 are supported</p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Academic Information */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-white mb-2">Your academic background</h2>
+                <p className="text-slate-300">Help us understand your learning context</p>
+              </div>
+
+              {/* Curriculum */}
+              <div>
+                <label className="block text-sm font-medium text-slate-200 mb-3">
+                  Which curriculum do you follow? <span className="text-red-400">*</span>
+                </label>
+                <div className="space-y-3">
+                  {curriculumOptions.map((option) => (
+                    <div
+                      key={option.value}
+                      onClick={() => {
+                        form.setValue('curriculum', option.value);
+                        form.setValue('grade', ''); // Reset grade when curriculum changes
+                      }}
+                      className={`p-4 rounded-xl border cursor-pointer transition-all hover:border-blue-400 ${
+                        form.values.curriculum === option.value
+                          ? 'border-blue-400 bg-blue-500/10'
+                          : 'border-white/20 bg-white/5'
+                      }`}
+                    >
+                      <div className="flex items-start">
+                        <div className={`w-4 h-4 rounded-full border-2 mt-1 mr-3 ${
+                          form.values.curriculum === option.value
+                            ? 'border-blue-400 bg-blue-400'
+                            : 'border-white/40'
+                        }`}></div>
+                        <div>
+                          <h3 className="text-white font-medium">{option.label}</h3>
+                          <p className="text-slate-300 text-sm mt-1">{option.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {form.errors.curriculum && (
+                  <p className="mt-2 text-sm text-red-400">{form.errors.curriculum}</p>
+                )}
+              </div>
+
+              {/* Grade */}
+              {form.values.curriculum && (
+                <div>
+                  <label htmlFor="grade" className="block text-sm font-medium text-slate-200 mb-2">
+                    What's your current grade/year? <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    id="grade"
+                    value={form.values.grade}
+                    onChange={(e) => form.setValue('grade', e.target.value)}
+                    className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      form.errors.grade ? 'border-red-400' : 'border-white/20'
+                    }`}
+                  >
+                    <option value="" className="bg-slate-800">Select your grade/year</option>
+                    {getAvailableGrades().map((grade) => (
+                      <option key={grade} value={grade} className="bg-slate-800">
+                        {grade}
+                      </option>
+                    ))}
+                  </select>
+                  {form.errors.grade && (
+                    <p className="mt-1 text-sm text-red-400">{form.errors.grade}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Learning Preferences */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-white mb-2">Your learning goals</h2>
+                <p className="text-slate-300">Let's personalize your AI learning experience</p>
+              </div>
+
+              {/* Learning Goal */}
+              <div>
+                <label className="block text-sm font-medium text-slate-200 mb-3">
+                  What's your main learning goal? <span className="text-red-400">*</span>
+                </label>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {learningGoalOptions.map((goal) => (
+                    <div
+                      key={goal}
+                      onClick={() => form.setValue('learningGoal', goal)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all hover:border-blue-400 ${
+                        form.values.learningGoal === goal
+                          ? 'border-blue-400 bg-blue-500/10'
+                          : 'border-white/20 bg-white/5'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <div className={`w-4 h-4 rounded-full border-2 mr-3 ${
+                          form.values.learningGoal === goal
+                            ? 'border-blue-400 bg-blue-400'
+                            : 'border-white/40'
+                        }`}></div>
+                        <span className="text-white text-sm">{goal}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {form.errors.learningGoal && (
+                  <p className="mt-2 text-sm text-red-400">{form.errors.learningGoal}</p>
+                )}
+              </div>
+
+              {/* Preferred Mode */}
+              <div>
+                <label className="block text-sm font-medium text-slate-200 mb-3">
+                  Learning Mode
+                </label>
+                <div className="p-4 rounded-xl border border-blue-400 bg-blue-500/10">
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full border-2 border-blue-400 bg-blue-400 mr-3"></div>
+                    <div>
+                      <h3 className="text-white font-medium">AI Autopilot</h3>
+                      <p className="text-slate-300 text-sm mt-1">
+                        Let our AI create a personalized learning path and adapt to your progress automatically
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-slate-400">
+                  More learning modes coming soon! For now, enjoy the power of AI Autopilot.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-400/20">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between items-center mt-8 pt-6 border-t border-white/10">
+            <button
+              onClick={currentStep === 1 ? () => router.push('/onboarding/choose-role') : handleBack}
+              className="flex items-center text-slate-400 hover:text-white transition-colors duration-200"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              {currentStep === 1 ? 'Back to role selection' : 'Previous'}
+            </button>
+
+            {currentStep < 3 ? (
+              <button
+                onClick={handleNext}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-6 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 font-medium flex items-center"
+              >
+                Continue
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={actionLoading}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-8 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {actionLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-transparent bg-gradient-to-r from-white to-transparent bg-clip-border mr-2"></div>
+                    Setting up...
+                  </>
+                ) : (
+                  <>
+                    Complete Setup
+                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
