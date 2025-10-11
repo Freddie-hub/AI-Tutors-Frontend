@@ -4,22 +4,22 @@ export default function Fields() {
   const cards = [
     {
       title: "CBC Curriculum",
-      desc: "Master Kenya’s Competency-Based Curriculum with AI-personalized lessons. Choose Autopilot Mode for full AI guidance or Mentor Mode to learn with AI alongside a verified human mentor. Structured lessons, assessments, and projects aligned to CBC standards.",
+      desc: "Master Kenya’s Competency-Based Curriculum with AI-personalized lessons. Study independently under Autopilot Mode as the AI guides you through structured lessons, assessments, and projects aligned with CBC standards.",
       tagline: "Aligned with CBC. Powered by AI.",
     },
     {
       title: "British Curriculum",
-      desc: "Learn under Cambridge and Edexcel frameworks with adaptive AI lessons. Personalized revision paths, assessments, and mentor support to help you excel in IGCSE or A-Levels.",
+      desc: "Learn under Cambridge and Edexcel frameworks with adaptive AI lessons. Enjoy personalized revision paths, automated assessments, and smart feedback to help you excel in IGCSE or A-Levels.",
       tagline: "Global standards. Personal pace.",
     },
     {
       title: "Corporate & Individual Learning",
-      desc: "Upskill or explore new fields — from AI and coding to leadership and design. Set your goal, and the AI creates a custom study roadmap with adaptive challenges and feedback.",
+      desc: "Upskill or explore new fields — from AI and coding to leadership and design. Set your learning goal, and the AI builds a custom study roadmap with adaptive challenges and instant feedback.",
       tagline: "Learn anything. Anytime.",
     },
     {
       title: "Schools & NGOs",
-      desc: "Empower learning at scale with AI-assisted teaching tools, analytics, and lesson generation. Enable teachers to review AI lessons, monitor progress, and personalize learning for every student. Perfect for schools, NGOs, and education partners.",
+      desc: "Empower large-scale learning with AI-driven tools and analytics. Let students learn independently while you track progress and generate insights through an institutional dashboard. Ideal for schools, NGOs, and education partners.",
       tagline: "AI for classrooms and communities.",
     },
   ];
@@ -41,8 +41,7 @@ export default function Fields() {
       {/* Register Button */}
       <button className="mb-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm px-6 py-2 rounded-full transition">
         Register Now →
-        </button>
-
+      </button>
 
       {/* Glass Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
