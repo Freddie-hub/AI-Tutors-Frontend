@@ -81,9 +81,10 @@ export const userService = {
         email: user.email || '',
         displayName: user.displayName,
         photoURL: user.photoURL,
-        role: 'student', // Default role
+        role: 'individual-student', // Default role, will be updated during onboarding
         isIndependent: !institutionId, // Independent if no institution found
         institutionId: institutionId || undefined,
+        onboarded: false, // User needs to complete onboarding
         createdAt: new Date(),
         updatedAt: new Date(),
         ...additionalData

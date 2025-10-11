@@ -79,8 +79,9 @@ export interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   institutionId?: string; // For institution-linked students
-  role: 'student' | 'instructor' | 'admin';
+  role: 'individual-student' | 'institution-admin' | 'corporate-user' | 'student' | 'instructor' | 'admin';
   isIndependent: boolean; // true for independent students
+  onboarded: boolean; // true when user has completed onboarding process
   createdAt: Date;
   updatedAt: Date;
   preferences?: {
