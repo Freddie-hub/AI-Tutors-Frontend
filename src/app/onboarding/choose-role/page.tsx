@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthUser, useAuthActions } from '@/lib/hooks';
 import { userService } from '@/lib/auth';
+import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
 
 type UserRole = 'individual-student' | 'institution-admin' | 'corporate-user';
 
@@ -44,12 +45,13 @@ const roleOptions: RoleOption[] = [
 ];
 
 export default function ChooseRolePage() {
+  const { isLoading } = useOnboardingProtection();
   const router = useRouter();
-  const { user, loading } = useAuthUser();
+  const { user } = useAuthUser();
   const { withErrorHandling, loading: actionLoading } = useAuthActions();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="relative">
@@ -58,11 +60,6 @@ export default function ChooseRolePage() {
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    router.push('/auth');
-    return null;
   }
 
   const handleRoleSelect = async (role: UserRole) => {

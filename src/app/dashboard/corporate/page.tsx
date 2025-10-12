@@ -2,9 +2,11 @@
 
 import { useAuthUser } from '@/lib/hooks';
 import { authService } from '@/lib/auth';
+import { useDashboardProtection } from '@/hooks/useRoleRedirect';
 
 export default function CorporateDashboard() {
-  const { user, profile, loading } = useAuthUser();
+  const { isLoading } = useDashboardProtection(['corporate-user']);
+  const { user, profile } = useAuthUser();
 
   const handleSignOut = async () => {
     try {
@@ -14,7 +16,7 @@ export default function CorporateDashboard() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>

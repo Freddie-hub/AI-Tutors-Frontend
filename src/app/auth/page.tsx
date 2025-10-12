@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { User } from 'firebase/auth';
+import { useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
-import { authService, userService } from '@/lib/auth';
-import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
+import { authService } from '@/lib/auth';
+import { useAuthActions, useFormState } from '@/lib/hooks';
+import { useAuthPageRedirect } from '@/hooks/useRoleRedirect';
 
 interface LoginFormData {
   email: string;
@@ -21,8 +20,7 @@ interface SignupFormData {
 }
 
 export default function AuthPage() {
-  const router = useRouter();
-  const { user, profile, loading: authLoading } = useAuthUser();
+  const { isLoading } = useAuthPageRedirect();
   const { withErrorHandling, loading: actionLoading, error, clearError } = useAuthActions();
   const [isSignup, setIsSignup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -40,38 +38,6 @@ export default function AuthPage() {
     confirmPassword: '',
     displayName: ''
   });
-
-  // Redirect logic when user is authenticated
-  useEffect(() => {
-    if (user && !authLoading) {
-      if (!profile) {
-        // No profile found, redirect to onboarding
-        router.push('/onboarding/choose-role');
-        return;
-      }
-
-      // Check if user has completed onboarding
-      if (profile.onboarded) {
-        // Redirect based on role
-        switch (profile.role) {
-          case 'individual-student':
-            router.push('/dashboard/student');
-            break;
-          case 'institution-admin':
-            router.push('/dashboard/institution');
-            break;
-          case 'corporate-user':
-            router.push('/dashboard/corporate');
-            break;
-          default:
-            router.push('/onboarding/choose-role');
-        }
-      } else {
-        // Profile exists but onboarding not complete
-        router.push('/onboarding/choose-role');
-      }
-    }
-  }, [user, profile, authLoading, router]);
 
   // Validation functions
   const validateEmail = (email: string): string | null => {
@@ -201,7 +167,7 @@ export default function AuthPage() {
   };
 
   // Loading state while checking authentication
-  if (authLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">

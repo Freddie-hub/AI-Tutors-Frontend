@@ -2,9 +2,11 @@
 
 import { useAuthUser } from '@/lib/hooks';
 import { authService } from '@/lib/auth';
+import { useDashboardProtection } from '@/hooks/useRoleRedirect';
 
 export default function InstitutionDashboard() {
-  const { user, profile, institution, loading } = useAuthUser();
+  const { isLoading } = useDashboardProtection(['institution-admin']);
+  const { user, profile, institution } = useAuthUser();
 
   const handleSignOut = async () => {
     try {
@@ -14,7 +16,7 @@ export default function InstitutionDashboard() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
