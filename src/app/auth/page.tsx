@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
+import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
-import { useAuthActions, useFormState } from '@/lib/hooks';
-import { useAuthPageRedirect } from '@/hooks/useRoleRedirect';
+import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
+import { useEffect } from 'react';
 
 interface LoginFormData {
   email: string;
@@ -20,7 +21,8 @@ interface SignupFormData {
 }
 
 export default function AuthPage() {
-  const { isLoading } = useAuthPageRedirect();
+  const router = useRouter();
+  const { user, loading: userLoading } = useAuthUser();
   const { withErrorHandling, loading: actionLoading, error, clearError } = useAuthActions();
   const [isSignup, setIsSignup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -39,6 +41,61 @@ export default function AuthPage() {
     displayName: ''
   });
 
+  // Custom hook for redirect logic
+  const useAuthPageRedirect = () => {
+    useEffect(() => {
+      if (userLoading || !user) return;
+
+      const { role, onboarded } = user.userData || {};
+      console.log('[AuthPageRedirect] checking user state', { role, onboarded });
+
+      if (!role) {
+        console.log('[AuthPageRedirect] no role, redirecting to /onboarding/choose-role');
+        router.push('/onboarding/choose-role');
+        return;
+      }
+
+      if (!onboarded) {
+        console.log('[AuthPageRedirect] user not onboarded, redirecting based on role', { role });
+        switch (role) {
+          case 'individual-student':
+          case 'institution-student':
+            router.push('/onboarding/student');
+            break;
+          case 'institution-admin':
+            router.push('/onboarding/institution');
+            break;
+          case 'upskill-individual':
+            router.push('/onboarding/upskill');
+            break;
+          default:
+            console.warn('[AuthPageRedirect] unknown role', role);
+            router.push('/onboarding/choose-role');
+        }
+        return;
+      }
+
+      console.log('[AuthPageRedirect] user onboarded, redirecting based on role', { role });
+      switch (role) {
+        case 'individual-student':
+        case 'institution-student':
+          router.push('/dashboard/student');
+          break;
+        case 'institution-admin':
+          router.push('/dashboard/admin');
+          break;
+        case 'upskill-individual':
+          router.push('/dashboard/upskill');
+          break;
+        default:
+          console.warn('[AuthPageRedirect] unknown role, redirecting to /onboarding/choose-role');
+          router.push('/onboarding/choose-role');
+      }
+    }, [user, userLoading, router]);
+  };
+
+  useAuthPageRedirect();
+
   // Validation functions
   const validateEmail = (email: string): string | null => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,27 +113,23 @@ export default function AuthPage() {
   const validateSignupForm = (): boolean => {
     let isValid = true;
 
-    // Validate email
     const emailError = validateEmail(signupForm.values.email);
     if (emailError) {
       signupForm.setError('email', emailError);
       isValid = false;
     }
 
-    // Validate display name
     if (!signupForm.values.displayName.trim()) {
       signupForm.setError('displayName', 'Display name is required');
       isValid = false;
     }
 
-    // Validate password
     const passwordError = validatePassword(signupForm.values.password);
     if (passwordError) {
       signupForm.setError('password', passwordError);
       isValid = false;
     }
 
-    // Validate confirm password
     if (signupForm.values.password !== signupForm.values.confirmPassword) {
       signupForm.setError('confirmPassword', 'Passwords do not match');
       isValid = false;
@@ -108,11 +161,17 @@ export default function AuthPage() {
     clearError();
     const result = await withErrorHandling(async () => {
       return await authService.signInWithGoogle();
+    }, (err) => {
+      console.error('[AuthPage] Google sign-in error', err);
+      if (err.code === 'auth/invalid-credential' && user?.userData?.role === 'institution-student') {
+        console.log('[AuthPage] institution-student invalid credential');
+        return 'Invalid credentials. Please check your institution-provided email and password.';
+      }
+      return err.message || 'Failed to sign in with Google';
     });
 
     if (result) {
-      // Profile creation and redirection will be handled by useEffect
-      console.log('Google sign-in successful');
+      console.log('[AuthPage] Google sign-in successful');
     }
   };
 
@@ -127,10 +186,26 @@ export default function AuthPage() {
         loginForm.values.email,
         loginForm.values.password
       );
+    }, (err) => {
+      console.error('[AuthPage] Email login error', err);
+      if (err.code === 'auth/invalid-credential' && user?.userData?.role === 'institution-student') {
+        console.log('[AuthPage] institution-student invalid credential');
+        return 'Invalid credentials. Please check your institution-provided email and password.';
+      }
+      switch (err.code) {
+        case 'auth/user-not-found':
+          return 'No account found with this email';
+        case 'auth/wrong-password':
+          return 'Incorrect password';
+        case 'auth/too-many-requests':
+          return 'Too many attempts. Please try again later.';
+        default:
+          return err.message || 'Failed to sign in';
+      }
     });
 
     if (result) {
-      console.log('Email login successful');
+      console.log('[AuthPage] Email login successful');
     }
   };
 
@@ -146,16 +221,27 @@ export default function AuthPage() {
         signupForm.values.password
       );
 
-      // Update display name
       await authService.updateUserProfile({
         displayName: signupForm.values.displayName
       });
 
       return userCredential;
+    }, (err) => {
+      console.error('[AuthPage] Email signup error', err);
+      switch (err.code) {
+        case 'auth/email-already-in-use':
+          return 'This email is already registered';
+        case 'auth/invalid-email':
+          return 'Invalid email address';
+        case 'auth/weak-password':
+          return 'Password is too weak';
+        default:
+          return err.message || 'Failed to create account';
+      }
     });
 
     if (result) {
-      console.log('Email signup successful');
+      console.log('[AuthPage] Email signup successful');
     }
   };
 
@@ -166,8 +252,7 @@ export default function AuthPage() {
     signupForm.reset();
   };
 
-  // Loading state while checking authentication
-  if (isLoading) {
+  if (userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
@@ -181,7 +266,6 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             Learning.ai
@@ -201,7 +285,6 @@ export default function AuthPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-8">
-          {/* Google Sign In Button */}
           <button
             onClick={handleGoogleSignIn}
             disabled={actionLoading}
@@ -211,7 +294,6 @@ export default function AuthPage() {
             {isSignup ? 'Sign up with Google' : 'Sign in with Google'}
           </button>
 
-          {/* Divider */}
           <div className="mt-6 mb-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -223,16 +305,13 @@ export default function AuthPage() {
             </div>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200">
               <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
 
-          {/* Email/Password Form */}
           <form onSubmit={isSignup ? handleEmailSignup : handleEmailLogin} className="space-y-4">
-            {/* Display Name (Signup only) */}
             {isSignup && (
               <div>
                 <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
@@ -254,7 +333,6 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address
@@ -282,7 +360,6 @@ export default function AuthPage() {
               )}
             </div>
 
-            {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
@@ -323,7 +400,6 @@ export default function AuthPage() {
               )}
             </div>
 
-            {/* Confirm Password (Signup only) */}
             {isSignup && (
               <div>
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
@@ -358,7 +434,6 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={actionLoading}
@@ -375,7 +450,6 @@ export default function AuthPage() {
             </button>
           </form>
 
-          {/* Toggle Auth Mode */}
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
@@ -388,13 +462,11 @@ export default function AuthPage() {
             </p>
           </div>
 
-          {/* Forgot Password (Login only) */}
           {!isSignup && (
             <div className="mt-4 text-center">
               <button
                 onClick={() => {
-                  // TODO: Implement forgot password functionality
-                  console.log('Forgot password clicked');
+                  console.log('[AuthPage] Forgot password clicked');
                 }}
                 className="text-sm text-blue-600 hover:text-blue-500 focus:outline-none focus:underline"
               >
@@ -404,7 +476,6 @@ export default function AuthPage() {
           )}
         </div>
 
-        {/* Terms and Privacy */}
         <div className="text-center text-sm text-gray-500">
           By continuing, you agree to Learning.ai's{' '}
           <a href="/terms" className="text-blue-600 hover:text-blue-500 underline">

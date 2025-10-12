@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
-import { userService, institutionService } from '@/lib/auth';
+import { OnboardingContext } from '@/lib/context/OnboardingContext';
+import { createInstitution } from '@/lib/api';
 
-type InstitutionType = 'School' | 'NGO';
+type InstitutionType = 'university' | 'school' | 'college' | 'training_center' | 'ngo';
 
 interface InstitutionFormData {
   name: string;
@@ -16,12 +17,27 @@ interface InstitutionFormData {
 
 const institutionTypes = [
   { 
-    value: 'School' as InstitutionType, 
-    label: 'School', 
-    description: 'Primary schools, secondary schools, colleges, and universities'
+    value: 'university' as InstitutionType, 
+    label: 'University', 
+    description: 'Higher education institutions offering degree programs'
   },
   { 
-    value: 'NGO' as InstitutionType, 
+    value: 'school' as InstitutionType, 
+    label: 'School', 
+    description: 'Primary and secondary schools'
+  },
+  { 
+    value: 'college' as InstitutionType, 
+    label: 'College', 
+    description: 'Colleges offering diploma and certificate programs'
+  },
+  { 
+    value: 'training_center' as InstitutionType, 
+    label: 'Training Center', 
+    description: 'Vocational and technical training centers'
+  },
+  { 
+    value: 'ngo' as InstitutionType, 
     label: 'NGO', 
     description: 'Non-governmental organizations focused on education and training'
   }
@@ -34,32 +50,32 @@ const kenyanRegions = [
 
 const benefits = [
   {
-    icon: '👥',
+    icon: 'users',
     title: 'Manage Students',
     description: 'Easily enroll students, track their progress, and manage class assignments with our intuitive dashboard.'
   },
   {
-    icon: '📊',
+    icon: 'chart-line',
     title: 'Track Progress',
     description: 'Get detailed analytics on student performance, learning patterns, and areas that need attention.'
   },
   {
-    icon: '🎓',
+    icon: 'book-open',
     title: 'Generate Lessons',
     description: 'Create AI-powered lessons tailored to your curriculum and student needs in minutes, not hours.'
   },
   {
-    icon: '🤖',
+    icon: 'robot',
     title: 'AI Teaching Assistant',
     description: 'Deploy virtual tutors that provide 24/7 support to your students across all subjects.'
   },
   {
-    icon: '📈',
+    icon: 'analytics',
     title: 'Performance Analytics',
     description: 'Monitor institutional performance with comprehensive reports and insights for better decision making.'
   },
   {
-    icon: '🌍',
+    icon: 'globe',
     title: 'Curriculum Alignment',
     description: 'Seamlessly align with CBC, British, or create adaptive learning paths for diverse student needs.'
   }
@@ -68,7 +84,8 @@ const benefits = [
 export default function InstitutionOnboardingPage() {
   const router = useRouter();
   const { user, loading } = useAuthUser();
-  const { withErrorHandling, loading: actionLoading, error } = useAuthActions();
+  const { setError, loading: actionLoading } = useAuthActions();
+  const { setIsOnboarding } = useContext(OnboardingContext);
   
   const form = useFormState<InstitutionFormData>({
     name: '',
@@ -126,49 +143,37 @@ export default function InstitutionOnboardingPage() {
     
     if (!validateForm()) return;
 
-    const result = await withErrorHandling(async () => {
-      // Extract email domain for institution domain
-      const emailDomain = user.email?.split('@')[1] || '';
-      
-      // Create institution document
-      const institutionData = {
+    setIsOnboarding(true);
+    try {
+      const payload = {
         name: form.values.name.trim(),
-        type: form.values.type as 'university' | 'school' | 'college' | 'training_center',
-        domain: emailDomain,
-        adminEmails: [user.email!],
-        isActive: true,
+        type: form.values.type as InstitutionType,
         region: form.values.region,
         numberOfStudents: form.values.numberOfStudents ? Number(form.values.numberOfStudents) : undefined,
-        settings: {
-          allowSelfRegistration: true,
-          requireEmailVerification: false
-        }
+        admin_uid: user.uid
       };
 
-      const institutionId = await institutionService.createInstitution(institutionData);
+      console.log('[InstitutionOnboarding] calling createInstitution API', { payload });
+      const token = await user.getIdToken();
+      const response = await createInstitution(payload, token);
 
-      // Update user profile
-      await userService.updateUserProfile(user.uid, {
-        role: 'institution-admin',
-        institutionId: institutionId,
-        isIndependent: false,
-        onboarded: true
-      });
-
-      // Redirect to institution dashboard
-      router.push('/dashboard/institution');
-    });
-
-    if (!result) {
-      console.error('Failed to complete institution onboarding');
+      if (response.success && response.redirectUrl) {
+        console.log('[InstitutionOnboarding] API call successful, navigating to', response.redirectUrl);
+        router.push(response.redirectUrl);
+      } else {
+        throw new Error(response.message || 'Failed to create institution');
+      }
+    } catch (err: any) {
+      console.error('[InstitutionOnboarding] API call error', err);
+      setError(err.message || 'Failed to create institution. Please try again.');
+    } finally {
+      setIsOnboarding(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
-      {/* Left Side Panel - Benefits */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        {/* Background Effects */}
         <div className="absolute inset-0">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl"></div>
@@ -177,7 +182,7 @@ export default function InstitutionOnboardingPage() {
         <div className="relative z-10 flex flex-col justify-center p-12">
           <div className="mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-6">
-              <span className="text-2xl">🏫</span>
+              <span className="text-2xl">school</span>
             </div>
             <h1 className="text-4xl font-bold text-white mb-4">
               Empower Your Institution with AI
@@ -216,19 +221,16 @@ export default function InstitutionOnboardingPage() {
         </div>
       </div>
 
-      {/* Right Side - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          {/* Mobile Header */}
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-4">
-              <span className="text-2xl">🏫</span>
+              <span className="text-2xl">school</span>
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">Institution Setup</h1>
             <p className="text-slate-300">Configure your institution's AI learning environment</p>
           </div>
 
-          {/* Form Card */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8">
             <div className="hidden lg:block text-center mb-6">
               <h2 className="text-2xl font-bold text-white mb-2">Institution Registration</h2>
@@ -236,7 +238,6 @@ export default function InstitutionOnboardingPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Institution Name */}
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-slate-200 mb-2">
                   Institution Name <span className="text-red-400">*</span>
@@ -256,7 +257,6 @@ export default function InstitutionOnboardingPage() {
                 )}
               </div>
 
-              {/* Institution Type */}
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-3">
                   Institution Type <span className="text-red-400">*</span>
@@ -291,7 +291,6 @@ export default function InstitutionOnboardingPage() {
                 )}
               </div>
 
-              {/* Region */}
               <div>
                 <label htmlFor="region" className="block text-sm font-medium text-slate-200 mb-2">
                   Region <span className="text-red-400">*</span>
@@ -316,7 +315,6 @@ export default function InstitutionOnboardingPage() {
                 )}
               </div>
 
-              {/* Number of Students */}
               <div>
                 <label htmlFor="numberOfStudents" className="block text-sm font-medium text-slate-200 mb-2">
                   Number of Students <span className="text-slate-400">(Optional)</span>
@@ -340,14 +338,12 @@ export default function InstitutionOnboardingPage() {
                 </p>
               </div>
 
-              {/* Error Message */}
-              {error && (
+              {form.errors.api && (
                 <div className="p-3 rounded-lg bg-red-500/10 border border-red-400/20">
-                  <p className="text-red-400 text-sm">{error}</p>
+                  <p className="text-red-400 text-sm">{form.errors.api}</p>
                 </div>
               )}
 
-              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={actionLoading}
@@ -364,7 +360,6 @@ export default function InstitutionOnboardingPage() {
               </button>
             </form>
 
-            {/* Back Button */}
             <button
               onClick={() => router.push('/onboarding/choose-role')}
               className="w-full mt-4 text-slate-400 hover:text-white transition-colors duration-200 flex items-center justify-center"

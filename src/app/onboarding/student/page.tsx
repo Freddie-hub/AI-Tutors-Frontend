@@ -1,19 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
-import { userService } from '@/lib/auth';
+import { OnboardingContext } from '@/lib/context/OnboardingContext';
+import { onboardIndividualStudent, onboardInstitutionStudent } from '@/lib/api';
 
 type CurriculumType = 'CBC' | 'British' | 'Adaptive';
 
 interface StudentProfile {
-  fullName: string;
+  name: string;
   age: string;
   curriculum: CurriculumType | '';
   grade: string;
-  learningGoal: string;
-  preferredMode: 'AI Autopilot';
+  goal: string;
+  preferredMode: 'AI Autopilot' | '';
+  linked_institution?: string;
 }
 
 const curriculumOptions = [
@@ -54,16 +56,22 @@ const learningGoalOptions = [
 export default function StudentOnboardingPage() {
   const router = useRouter();
   const { user, loading } = useAuthUser();
-  const { withErrorHandling, loading: actionLoading, error } = useAuthActions();
+  const { setError } = useAuthActions();
+  const { setIsOnboarding } = useContext(OnboardingContext);
   const [currentStep, setCurrentStep] = useState(1);
-  
+  const [isSlow, setIsSlow] = useState(false);
+  const slowTimerRef = useRef<number | null>(null);
+
+  const isInstitutionStudent = user?.userData?.role === 'institution-student';
+
   const form = useFormState<StudentProfile>({
-    fullName: '',
+    name: '',
     age: '',
     curriculum: '',
     grade: '',
-    learningGoal: '',
-    preferredMode: 'AI Autopilot'
+    goal: '',
+    preferredMode: isInstitutionStudent ? '' : 'AI Autopilot',
+    linked_institution: user?.userData?.linked_institution || ''
   });
 
   if (loading) {
@@ -88,11 +96,11 @@ export default function StudentOnboardingPage() {
     switch (step) {
       case 1:
         let isValid = true;
-        if (!form.values.fullName.trim()) {
-          form.setError('fullName', 'Please enter your full name');
+        if (!form.values.name.trim()) {
+          form.setError('name', 'Please enter your name');
           isValid = false;
         }
-        if (!form.values.age || parseInt(form.values.age) < 5 || parseInt(form.values.age) > 25) {
+        if (!isInstitutionStudent && (!form.values.age || parseInt(form.values.age) < 5 || parseInt(form.values.age) > 25)) {
           form.setError('age', 'Please enter a valid age between 5 and 25');
           isValid = false;
         }
@@ -110,8 +118,8 @@ export default function StudentOnboardingPage() {
         return true;
       
       case 3:
-        if (!form.values.learningGoal) {
-          form.setError('learningGoal', 'Please select your learning goal');
+        if (!form.values.goal) {
+          form.setError('goal', 'Please select your learning goal');
           return false;
         }
         return true;
@@ -132,29 +140,64 @@ export default function StudentOnboardingPage() {
   };
 
   const handleSubmit = async () => {
+    console.log('[StudentOnboarding] submit clicked');
     if (!validateStep(3)) return;
 
-    const result = await withErrorHandling(async () => {
-      // Update user profile with onboarding data
-      await userService.updateUserProfile(user.uid, {
-        displayName: form.values.fullName,
-        onboarded: true,
-        preferences: {
+    setIsOnboarding(true);
+    if (slowTimerRef.current) {
+      clearTimeout(slowTimerRef.current);
+      slowTimerRef.current = null;
+    }
+    slowTimerRef.current = window.setTimeout(() => {
+      console.warn('[StudentOnboarding] API call taking longer than expected (7s)');
+      setIsSlow(true);
+    }, 7000);
+
+    try {
+      console.log('[StudentOnboarding] preparing API call', { uid: user.uid, values: form.values });
+      const token = await user.getIdToken();
+      let response;
+
+      if (isInstitutionStudent) {
+        const payload = {
+          name: form.values.name,
+          curriculum: form.values.curriculum as CurriculumType,
+          grade: form.values.grade,
+          goal: form.values.goal
+        };
+        response = await onboardInstitutionStudent(user.uid, payload, token);
+      } else {
+        const payload = {
+          name: form.values.name,
           age: parseInt(form.values.age),
           curriculum: form.values.curriculum as CurriculumType,
           grade: form.values.grade,
-          learningGoal: form.values.learningGoal,
-          preferredMode: form.values.preferredMode
-        }
-      });
+          goal: form.values.goal,
+          preferredMode: form.values.preferredMode as 'AI Autopilot'
+        };
+        response = await onboardIndividualStudent(user.uid, payload, token);
+      }
 
-      // Redirect to student dashboard
-      router.push('/dashboard/student');
-    });
-
-    if (!result) {
-      // Error is handled by useAuthActions
-      console.error('Failed to complete onboarding');
+      if (response.success && response.redirectUrl) {
+        console.log('[StudentOnboarding] API call successful, navigating to', response.redirectUrl);
+        router.push(response.redirectUrl);
+      } else {
+        throw new Error(response.message || 'Failed to complete onboarding');
+      }
+    } catch (err: any) {
+      console.error('[StudentOnboarding] API call error', err);
+      if (err.field && err.message) {
+        form.setError(err.field, err.message);
+      } else {
+        setError(err.message || 'Failed to complete onboarding. Please try again.');
+      }
+    } finally {
+      if (slowTimerRef.current) {
+        clearTimeout(slowTimerRef.current);
+        slowTimerRef.current = null;
+      }
+      setIsSlow(false);
+      setIsOnboarding(false);
     }
   };
 
@@ -163,21 +206,20 @@ export default function StudentOnboardingPage() {
     return gradeOptions[form.values.curriculum as CurriculumType] || [];
   };
 
-  const progressPercentage = (currentStep / 3) * 100;
+  const progressPercentage = isInstitutionStudent ? (currentStep / 2) * 100 : (currentStep / 3) * 100;
+  const totalSteps = isInstitutionStudent ? 2 : 3;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-      {/* Background Effects */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center py-12 px-4">
-        {/* Header */}
         <div className="text-center mb-8 max-w-2xl">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl mb-6">
-            <span className="text-2xl">🎓</span>
+            <span className="text-2xl">graduation-cap</span>
           </div>
           <h1 className="text-4xl font-bold text-white mb-4 tracking-tight">
             Let's set up your learning journey!
@@ -187,10 +229,9 @@ export default function StudentOnboardingPage() {
           </p>
         </div>
 
-        {/* Progress Bar */}
         <div className="w-full max-w-2xl mb-8">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-slate-400">Step {currentStep} of 3</span>
+            <span className="text-sm text-slate-400">Step {currentStep} of {totalSteps}</span>
             <span className="text-sm text-slate-400">{Math.round(progressPercentage)}% Complete</span>
           </div>
           <div className="w-full bg-slate-700 rounded-full h-2">
@@ -201,9 +242,7 @@ export default function StudentOnboardingPage() {
           </div>
         </div>
 
-        {/* Form Card */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 max-w-2xl w-full">
-          {/* Step 1: Personal Information */}
           {currentStep === 1 && (
             <div className="space-y-6">
               <div className="text-center mb-6">
@@ -211,52 +250,65 @@ export default function StudentOnboardingPage() {
                 <p className="text-slate-300">Let's start with some basic information</p>
               </div>
 
-              {/* Full Name */}
+              {isInstitutionStudent && form.values.linked_institution && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-200 mb-2">
+                    Institution
+                  </label>
+                  <input
+                    type="text"
+                    value={form.values.linked_institution}
+                    disabled
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400"
+                  />
+                </div>
+              )}
+
               <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-slate-200 mb-2">
-                  What's your full name? <span className="text-red-400">*</span>
+                <label htmlFor="name" className="block text-sm font-medium text-slate-200 mb-2">
+                  What's your name? <span className="text-red-400">*</span>
                 </label>
                 <input
-                  id="fullName"
+                  id="name"
                   type="text"
-                  value={form.values.fullName}
-                  onChange={(e) => form.setValue('fullName', e.target.value)}
+                  value={form.values.name}
+                  onChange={(e) => form.setValue('name', e.target.value)}
                   className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                    form.errors.fullName ? 'border-red-400' : 'border-white/20'
+                    form.errors.name ? 'border-red-400' : 'border-white/20'
                   }`}
-                  placeholder="Enter your full name"
+                  placeholder="Enter your name"
                 />
-                {form.errors.fullName && (
-                  <p className="mt-1 text-sm text-red-400">{form.errors.fullName}</p>
+                {form.errors.name && (
+                  <p className="mt-1 text-sm text-red-400">{form.errors.name}</p>
                 )}
               </div>
 
-              {/* Age */}
-              <div>
-                <label htmlFor="age" className="block text-sm font-medium text-slate-200 mb-2">
-                  How old are you? <span className="text-red-400">*</span>
-                </label>
-                <input
-                  id="age"
-                  type="number"
-                  min="5"
-                  max="25"
-                  value={form.values.age}
-                  onChange={(e) => form.setValue('age', e.target.value)}
-                  className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                    form.errors.age ? 'border-red-400' : 'border-white/20'
-                  }`}
-                  placeholder="Enter your age"
-                />
-                {form.errors.age && (
-                  <p className="mt-1 text-sm text-red-400">{form.errors.age}</p>
-                )}
-                <p className="mt-1 text-xs text-slate-400">Ages 5-25 are supported</p>
-              </div>
+              {!isInstitutionStudent && (
+                <div>
+                  <label htmlFor="age" className="block text-sm font-medium text-slate-200 mb-2">
+                    How old are you? <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    id="age"
+                    type="number"
+                    min="5"
+                    max="25"
+                    value={form.values.age}
+                    onChange={(e) => form.setValue('age', e.target.value)}
+                    className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      form.errors.age ? 'border-red-400' : 'border-white/20'
+                    }`}
+                    placeholder="Enter your age"
+                  />
+                  {form.errors.age && (
+                    <p className="mt-1 text-sm text-red-400">{form.errors.age}</p>
+                  )}
+                  <p className="mt-1 text-xs text-slate-400">Ages 5-25 are supported</p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Step 2: Academic Information */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <div className="text-center mb-6">
@@ -264,7 +316,6 @@ export default function StudentOnboardingPage() {
                 <p className="text-slate-300">Help us understand your learning context</p>
               </div>
 
-              {/* Curriculum */}
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-3">
                   Which curriculum do you follow? <span className="text-red-400">*</span>
@@ -275,7 +326,7 @@ export default function StudentOnboardingPage() {
                       key={option.value}
                       onClick={() => {
                         form.setValue('curriculum', option.value);
-                        form.setValue('grade', ''); // Reset grade when curriculum changes
+                        form.setValue('grade', '');
                       }}
                       className={`p-4 rounded-xl border cursor-pointer transition-all hover:border-blue-400 ${
                         form.values.curriculum === option.value
@@ -302,7 +353,6 @@ export default function StudentOnboardingPage() {
                 )}
               </div>
 
-              {/* Grade */}
               {form.values.curriculum && (
                 <div>
                   <label htmlFor="grade" className="block text-sm font-medium text-slate-200 mb-2">
@@ -331,15 +381,13 @@ export default function StudentOnboardingPage() {
             </div>
           )}
 
-          {/* Step 3: Learning Preferences */}
-          {currentStep === 3 && (
+          {currentStep === totalSteps && (
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Your learning goals</h2>
                 <p className="text-slate-300">Let's personalize your AI learning experience</p>
               </div>
 
-              {/* Learning Goal */}
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-3">
                   What's your main learning goal? <span className="text-red-400">*</span>
@@ -348,16 +396,16 @@ export default function StudentOnboardingPage() {
                   {learningGoalOptions.map((goal) => (
                     <div
                       key={goal}
-                      onClick={() => form.setValue('learningGoal', goal)}
+                      onClick={() => form.setValue('goal', goal)}
                       className={`p-3 rounded-xl border cursor-pointer transition-all hover:border-blue-400 ${
-                        form.values.learningGoal === goal
+                        form.values.goal === goal
                           ? 'border-blue-400 bg-blue-500/10'
                           : 'border-white/20 bg-white/5'
                       }`}
                     >
                       <div className="flex items-center">
                         <div className={`w-4 h-4 rounded-full border-2 mr-3 ${
-                          form.values.learningGoal === goal
+                          form.values.goal === goal
                             ? 'border-blue-400 bg-blue-400'
                             : 'border-white/40'
                         }`}></div>
@@ -366,42 +414,49 @@ export default function StudentOnboardingPage() {
                     </div>
                   ))}
                 </div>
-                {form.errors.learningGoal && (
-                  <p className="mt-2 text-sm text-red-400">{form.errors.learningGoal}</p>
+                {form.errors.goal && (
+                  <p className="mt-2 text-sm text-red-400">{form.errors.goal}</p>
                 )}
               </div>
 
-              {/* Preferred Mode */}
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-3">
-                  Learning Mode
-                </label>
-                <div className="p-4 rounded-xl border border-blue-400 bg-blue-500/10">
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 rounded-full border-2 border-blue-400 bg-blue-400 mr-3"></div>
-                    <div>
-                      <h3 className="text-white font-medium">AI Autopilot</h3>
-                      <p className="text-slate-300 text-sm mt-1">
-                        Let our AI create a personalized learning path and adapt to your progress automatically
-                      </p>
+              {!isInstitutionStudent && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-200 mb-3">
+                    Learning Mode
+                  </label>
+                  <div className="p-4 rounded-xl border border-blue-400 bg-blue-500/10">
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 rounded-full border-2 border-blue-400 bg-blue-400 mr-3"></div>
+                      <div>
+                        <h3 className="text-white font-medium">AI Autopilot</h3>
+                        <p className="text-slate-300 text-sm mt-1">
+                          Let our AI create a personalized learning path and adapt to your progress automatically
+                        </p>
+                      </div>
                     </div>
                   </div>
+                  <p className="mt-2 text-xs text-slate-400">
+                    More learning modes coming soon! For now, enjoy the power of AI Autopilot.
+                  </p>
                 </div>
-                <p className="mt-2 text-xs text-slate-400">
-                  More learning modes coming soon! For now, enjoy the power of AI Autopilot.
-                </p>
-              </div>
+              )}
             </div>
           )}
 
-          {/* Error Message */}
-          {error && (
+          {form.errors.api && (
             <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-400/20">
-              <p className="text-red-400 text-sm">{error}</p>
+              <p className="text-red-400 text-sm">{form.errors.api}</p>
             </div>
           )}
 
-          {/* Navigation Buttons */}
+          {isSlow && !form.errors.api && (
+            <div className="mt-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-400/20">
+              <p className="text-yellow-300 text-sm">
+                This is taking longer than expected. Please check your internet connection or try an incognito window. We'll continue trying in the background.
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-between items-center mt-8 pt-6 border-t border-white/10">
             <button
               onClick={currentStep === 1 ? () => router.push('/onboarding/choose-role') : handleBack}
@@ -413,7 +468,7 @@ export default function StudentOnboardingPage() {
               {currentStep === 1 ? 'Back to role selection' : 'Previous'}
             </button>
 
-            {currentStep < 3 ? (
+            {currentStep < totalSteps ? (
               <button
                 onClick={handleNext}
                 className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-6 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 font-medium flex items-center"
@@ -426,10 +481,10 @@ export default function StudentOnboardingPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={actionLoading}
+                disabled={form.isSubmitting}
                 className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-8 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
-                {actionLoading ? (
+                {form.isSubmitting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-transparent bg-gradient-to-r from-white to-transparent bg-clip-border mr-2"></div>
                     Setting up...
