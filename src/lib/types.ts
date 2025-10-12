@@ -40,3 +40,32 @@ export interface ApiResponse {
   field?: string;
   code?: string;
 }
+
+// Shared data contracts for frontend <-> backend
+export interface UserProfile {
+  uid?: string;
+  email?: string;
+  displayName?: string | null;
+  photoURL?: string | null;
+  role?: UserRole;
+  onboarded?: boolean;
+  institutionId?: string;
+  isIndependent?: boolean;
+  preferences?: {
+    age?: number;
+    curriculum?: CurriculumType;
+    grade?: string;
+    goal?: string; // alias of learningGoal from UI
+    learningGoal?: string;
+    preferredMode?: 'AI Autopilot';
+  };
+}
+
+export interface Institution {
+  id: string;
+  name?: string;
+  type?: 'university' | 'school' | 'college' | 'training_center' | 'ngo';
+  domain?: string;
+  adminEmails?: string[];
+  isActive?: boolean;
+}

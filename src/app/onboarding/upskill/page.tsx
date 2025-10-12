@@ -133,9 +133,9 @@ export default function UpskillOnboardingPage() {
     } catch (err: any) {
       console.error('[UpskillOnboarding] API call error', err);
       if (err.field && err.message) {
-        form.setError(err.field, err.message);
+        form.setError(err.field as keyof UpskillProfile, err.message);
       } else {
-        setError(err.message || 'Failed to complete onboarding. Please try again.');
+        form.setError('api', err.message || 'Failed to complete onboarding. Please try again.');
       }
     } finally {
       setIsOnboarding(false);

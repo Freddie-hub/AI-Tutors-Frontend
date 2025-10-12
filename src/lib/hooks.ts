@@ -1,13 +1,13 @@
-// React hooks for Firebase authentication and Firestore
-// Provides easy-to-use hooks for managing auth state and data
+// React hooks for Firebase authentication
+// Frontend handles authentication only; profile/institution data comes from backend API
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { auth, db, UserProfile, Institution } from './firebase';
-import { userService, institutionService } from './auth';
+import { auth } from './firebase';
+import { UserProfile, Institution } from './types';
+import { fetchProfile, fetchInstitution } from './api';
 
 // Hook for authentication state
 export function useAuth() {
@@ -33,32 +33,29 @@ export function useUserProfile(uid?: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!uid) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    const userRef = doc(db, 'users', uid);
-    const unsubscribe = onSnapshot(
-      userRef,
-      (doc) => {
-        if (doc.exists()) {
-          setProfile(doc.data() as UserProfile);
-        } else {
-          setProfile(null);
-        }
+    let cancelled = false;
+    const run = async () => {
+      if (!uid) {
+        setProfile(null);
         setLoading(false);
-        setError(null);
-      },
-      (error) => {
-        console.error('Error fetching user profile:', error);
-        setError(error.message);
-        setLoading(false);
+        return;
       }
-    );
 
-    return unsubscribe;
+      try {
+        setLoading(true);
+        setError(null);
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) throw new Error('Not authenticated');
+        const data = await fetchProfile(uid, token);
+        if (!cancelled) setProfile(data);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || 'Failed to load profile');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
   }, [uid]);
 
   return { profile, loading, error };
@@ -71,32 +68,28 @@ export function useInstitution(institutionId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!institutionId) {
-      setInstitution(null);
-      setLoading(false);
-      return;
-    }
-
-    const institutionRef = doc(db, 'institutions', institutionId);
-    const unsubscribe = onSnapshot(
-      institutionRef,
-      (doc) => {
-        if (doc.exists()) {
-          setInstitution(doc.data() as Institution);
-        } else {
-          setInstitution(null);
-        }
+    let cancelled = false;
+    const run = async () => {
+      if (!institutionId) {
+        setInstitution(null);
         setLoading(false);
-        setError(null);
-      },
-      (error) => {
-        console.error('Error fetching institution:', error);
-        setError(error.message);
-        setLoading(false);
+        return;
       }
-    );
-
-    return unsubscribe;
+      try {
+        setLoading(true);
+        setError(null);
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) throw new Error('Not authenticated');
+        const data = await fetchInstitution(institutionId, token);
+        if (!cancelled) setInstitution(data);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || 'Failed to load institution');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
   }, [institutionId]);
 
   return { institution, loading, error };
@@ -110,12 +103,7 @@ export function useAuthUser() {
 
   const loading = authLoading || profileLoading || institutionLoading;
 
-  // Create user profile if it doesn't exist
-  useEffect(() => {
-    if (user && !profileLoading && !profile && !error) {
-      userService.createUserProfile(user).catch(console.error);
-    }
-  }, [user, profile, profileLoading, error]);
+  // Profile creation now handled by backend upon first auth; no direct Firestore writes here
 
   return {
     user,
@@ -154,6 +142,8 @@ export function useAuthActions() {
   return {
     loading,
     error,
+    // expose setter so callers can set a top-level API error message
+    setError,
     clearError,
     withErrorHandling
   };
@@ -162,7 +152,9 @@ export function useAuthActions() {
 // Hook for form state management
 export function useFormState<T>(initialState: T) {
   const [values, setValues] = useState<T>(initialState);
-  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  // Allow a generic 'api' error slot in addition to field errors
+  const [errors, setErrors] = useState<Partial<Record<keyof T | 'api', string>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const setValue = (field: keyof T, value: T[keyof T]) => {
     setValues(prev => ({ ...prev, [field]: value }));
@@ -172,7 +164,7 @@ export function useFormState<T>(initialState: T) {
     }
   };
 
-  const setError = (field: keyof T, error: string) => {
+  const setError = (field: keyof T | 'api', error: string) => {
     setErrors(prev => ({ ...prev, [field]: error }));
   };
 
@@ -192,6 +184,8 @@ export function useFormState<T>(initialState: T) {
     setError,
     clearErrors,
     reset,
-    hasErrors
+    hasErrors,
+    isSubmitting,
+    setSubmitting: setIsSubmitting
   };
 }

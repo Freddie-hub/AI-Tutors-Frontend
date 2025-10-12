@@ -46,7 +46,7 @@ const roleOptions: RoleOption[] = [
 
 export default function ChooseRolePage() {
   const router = useRouter();
-  const { user } = useAuthUser();
+  const { user, profile } = useAuthUser();
   const { loading: actionLoading, setError } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
@@ -60,14 +60,14 @@ export default function ChooseRolePage() {
       return;
     }
 
-    if (user.userData?.role === 'institution-student' && !user.userData?.onboarded) {
+    if (profile?.role === 'institution-student' && !profile?.onboarded) {
       console.log('[ChooseRole] institution-student detected, redirecting to /onboarding/student');
       router.push('/onboarding/student');
       return;
     }
 
     setIsLoading(false);
-  }, [user, router]);
+  }, [user, profile, router]);
 
   // Debug: component lifecycle
   useEffect(() => {

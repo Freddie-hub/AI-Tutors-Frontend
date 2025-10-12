@@ -55,14 +55,14 @@ const learningGoalOptions = [
 
 export default function StudentOnboardingPage() {
   const router = useRouter();
-  const { user, loading } = useAuthUser();
+  const { user, profile, institution, loading } = useAuthUser();
   const { setError } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSlow, setIsSlow] = useState(false);
   const slowTimerRef = useRef<number | null>(null);
 
-  const isInstitutionStudent = user?.userData?.role === 'institution-student';
+  const isInstitutionStudent = profile?.role === 'institution-student';
 
   const form = useFormState<StudentProfile>({
     name: '',
@@ -71,7 +71,7 @@ export default function StudentOnboardingPage() {
     grade: '',
     goal: '',
     preferredMode: isInstitutionStudent ? '' : 'AI Autopilot',
-    linked_institution: user?.userData?.linked_institution || ''
+    linked_institution: institution?.name || ''
   });
 
   if (loading) {
@@ -144,6 +144,7 @@ export default function StudentOnboardingPage() {
     if (!validateStep(3)) return;
 
     setIsOnboarding(true);
+    form.setSubmitting(true);
     if (slowTimerRef.current) {
       clearTimeout(slowTimerRef.current);
       slowTimerRef.current = null;
@@ -187,9 +188,9 @@ export default function StudentOnboardingPage() {
     } catch (err: any) {
       console.error('[StudentOnboarding] API call error', err);
       if (err.field && err.message) {
-        form.setError(err.field, err.message);
+        form.setError(err.field as keyof StudentProfile, err.message);
       } else {
-        setError(err.message || 'Failed to complete onboarding. Please try again.');
+        form.setError('api', err.message || 'Failed to complete onboarding. Please try again.');
       }
     } finally {
       if (slowTimerRef.current) {
@@ -198,6 +199,7 @@ export default function StudentOnboardingPage() {
       }
       setIsSlow(false);
       setIsOnboarding(false);
+      form.setSubmitting(false);
     }
   };
 

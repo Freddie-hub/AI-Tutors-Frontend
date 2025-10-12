@@ -1,10 +1,11 @@
-import { IndividualStudentOnboardingData, InstitutionStudentOnboardingData, UpskillIndividualOnboardingData, InstitutionAdminOnboardingData, ApiResponse } from './types';
+import { IndividualStudentOnboardingData, InstitutionStudentOnboardingData, UpskillIndividualOnboardingData, InstitutionAdminOnboardingData, ApiResponse, UserProfile, Institution } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
 
 async function fetchWithToken(endpoint: string, method: string, token: string, body?: any): Promise<ApiResponse> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
     Authorization: `Bearer ${token}`,
   };
 
@@ -16,7 +17,9 @@ async function fetchWithToken(endpoint: string, method: string, token: string, b
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    const data = await response.json();
+    // Safely parse JSON (handle 204/empty body)
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : {};
 
     if (!response.ok) {
       console.error(`[API] Request failed for ${endpoint}`, { status: response.status, data });
@@ -24,6 +27,7 @@ async function fetchWithToken(endpoint: string, method: string, token: string, b
         message: data.message || 'Request failed',
         field: data.field,
         code: data.code,
+        status: response.status,
       };
     }
 
@@ -41,6 +45,35 @@ async function fetchWithToken(endpoint: string, method: string, token: string, b
       code: error.code,
     };
   }
+}
+
+// Generic JSON GET with token returning typed payload
+async function getJSONWithToken<T>(endpoint: string, token: string): Promise<T> {
+  const headers: HeadersInit = {
+    Accept: 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'GET', headers });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!res.ok) {
+    throw {
+      message: data.message || 'Request failed',
+      code: data.code,
+      status: res.status,
+    };
+  }
+  return data as T;
+}
+
+// Public: fetch user profile from backend
+export async function fetchProfile(uid: string, token: string): Promise<UserProfile> {
+  return getJSONWithToken<UserProfile>(`/users/${uid}`, token);
+}
+
+// Public: fetch institution by id from backend
+export async function fetchInstitution(institutionId: string, token: string): Promise<Institution> {
+  return getJSONWithToken<Institution>(`/institutions/${institutionId}`, token);
 }
 
 export async function setRole(uid: string, data: { role: string }, token: string): Promise<ApiResponse> {
