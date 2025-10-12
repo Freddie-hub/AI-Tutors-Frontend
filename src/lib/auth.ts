@@ -109,13 +109,17 @@ export const userService = {
     return null;
   },
 
-  // Update user profile
+  // Update user profile (upsert). Uses setDoc with merge to create the doc if missing.
   async updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void> {
     const userRef = doc(db, 'users', uid);
-    await updateDoc(userRef, {
-      ...updates,
-      updatedAt: serverTimestamp()
-    });
+    await setDoc(
+      userRef,
+      {
+        ...updates,
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
   },
 
   // Check if user belongs to an institution based on email domain

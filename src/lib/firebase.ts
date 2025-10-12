@@ -3,7 +3,7 @@
 
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, initializeFirestore } from 'firebase/firestore';
 
 // Firebase configuration object
 // Replace these with your actual Firebase project configuration
@@ -56,7 +56,10 @@ if (!getApps().length) {
 export const auth = getAuth(firebaseApp);
 
 // Initialize Firestore Database
-export const db = getFirestore(firebaseApp);
+// Force long polling to improve connectivity on restrictive networks (VPNs, proxies, some extensions)
+export const db = initializeFirestore(firebaseApp, {
+  experimentalForceLongPolling: true
+});
 
 // Configure Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();

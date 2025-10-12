@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthUser, useAuthActions } from '@/lib/hooks';
 import { userService } from '@/lib/auth';
@@ -30,7 +31,7 @@ const roleOptions: RoleOption[] = [
     id: 'institution-admin',
     title: 'Institution Admin',
     description: 'Manage learning programs, track student progress, and deploy AI tutors at scale.',
-    icon: '',
+    icon: '🏫',
     gradient: 'from-purple-500 to-pink-500',
     redirect: '/onboarding/institution'
   },
@@ -48,10 +49,27 @@ export default function ChooseRolePage() {
   const { isLoading } = useOnboardingProtection();
   const router = useRouter();
   const { user } = useAuthUser();
-  const { withErrorHandling, loading: actionLoading } = useAuthActions();
+  const { loading: actionLoading } = useAuthActions();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
+  // Debug: component lifecycle
+  useEffect(() => {
+    console.log('[ChooseRole] mounted');
+    return () => console.log('[ChooseRole] unmounted');
+  }, []);
+
+  // Debug: key state changes
+  useEffect(() => {
+    console.log('[ChooseRole] state update', {
+      isLoading,
+      actionLoading,
+      selectedRole,
+      userUid: user?.uid ?? null,
+    });
+  }, [isLoading, actionLoading, selectedRole, user]);
+
   if (isLoading) {
+    console.log('[ChooseRole] showing loading spinner');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="relative">
@@ -63,32 +81,37 @@ export default function ChooseRolePage() {
   }
 
   const handleRoleSelect = async (role: UserRole) => {
+    console.log('[ChooseRole] role clicked', { role, actionLoading });
     if (actionLoading) return;
 
     // Ensure user is authenticated before proceeding
     if (!user) {
+      console.warn('[ChooseRole] no user detected, redirecting to /auth');
       router.push('/auth');
       return;
     }
 
     setSelectedRole(role);
+    console.log('[ChooseRole] selectedRole set', role);
     
-    const result = await withErrorHandling(async () => {
-      // Update user profile with selected role
-      await userService.updateUserProfile(user.uid, {
+    // Start Firestore update in the background (don't block UI/navigation)
+    console.log('[ChooseRole] updating profile (background)', { uid: user.uid, role });
+    userService
+      .updateUserProfile(user.uid, {
         role: role,
-        onboarded: false // Still need to complete specific role onboarding
-      });
+        onboarded: false
+      })
+      .then(() => console.log('[ChooseRole] profile update completed'))
+      .catch((err) => console.error('[ChooseRole] profile update error', err));
 
-      // Find the redirect path for this role
-      const selectedOption = roleOptions.find(option => option.id === role);
-      if (selectedOption) {
-        router.push(selectedOption.redirect);
-      }
-    });
-
-    if (!result) {
-      setSelectedRole(null);
+    // Navigate immediately to the role-specific onboarding to avoid spinner deadlocks
+    const selectedOption = roleOptions.find(option => option.id === role);
+    console.log('[ChooseRole] redirect decision', { selectedOption });
+    if (selectedOption) {
+      console.log('[ChooseRole] navigating to', selectedOption.redirect);
+      router.push(selectedOption.redirect);
+    } else {
+      console.warn('[ChooseRole] no redirect option found for role', role);
     }
   };
 
