@@ -1,6 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+// Note: This hero button now redirects to the full auth page with Google and Email options.
+
 export default function Fields() {
+  const router = useRouter();
+
+  const handleRegister = async () => {
+    router.push("/auth");
+  };
+
   const cards = [
     {
       title: "CBC Curriculum",
@@ -26,24 +35,22 @@ export default function Fields() {
 
   return (
     <section className="relative min-h-screen bg-[#0b0b0f] flex flex-col items-center justify-center overflow-hidden px-6 py-20 text-center">
-      {/* Headline */}
       <div className="max-w-2xl mb-10">
         <h1 className="text-2xl md:text-4xl font-semibold text-white leading-snug">
-          Learn at the speed of{" "}
-          <span className="italic text-gray-300">thought</span>
+          Learn at the speed of <span className="italic text-gray-300">thought</span>
         </h1>
         <p className="text-gray-400 mt-3 text-sm md:text-base">
-          AI-personalized courses, gamified lessons, and real-time feedback to
-          elevate your skills.
+          AI-personalized courses, gamified lessons, and real-time feedback to elevate your skills.
         </p>
       </div>
 
-      {/* Register Button */}
-      <button className="mb-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm px-6 py-2 rounded-full transition">
+      <button
+        onClick={handleRegister}
+        className={`mb-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm px-6 py-2 rounded-full transition`}
+      >
         Register Now →
       </button>
 
-      {/* Glass Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         {cards.map((card, i) => (
           <div
@@ -55,12 +62,10 @@ export default function Fields() {
                        hover:scale-[1.02] transition duration-700 ease-out
                        flex flex-col justify-between p-5"
           >
-            {/* Glass effects */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-white/10 pointer-events-none" />
             <div className="absolute inset-0 rounded-3xl shadow-[inset_0_0_60px_rgba(0,0,0,0.6)] pointer-events-none" />
             <div className="absolute inset-0 rounded-3xl border border-white/20 shadow-[inset_0_0_20px_rgba(255,255,255,0.25),0_0_25px_rgba(255,255,255,0.05)] pointer-events-none" />
 
-            {/* Content */}
             <div className="relative z-10 text-left flex flex-col justify-between h-full">
               <div>
                 <h3 className="text-white text-sm md:text-base font-semibold mb-2">
@@ -78,7 +83,6 @@ export default function Fields() {
         ))}
       </div>
 
-      {/* Subtle background glow */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[70%] h-[20rem] bg-gradient-radial from-white/10 to-transparent blur-3xl pointer-events-none" />
     </section>
   );

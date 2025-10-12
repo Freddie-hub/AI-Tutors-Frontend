@@ -2,7 +2,7 @@
 // Supports authentication (Google & email) and Firestore for user profiles and institutions
 
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
 // Firebase configuration object
@@ -17,10 +17,37 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
+// Validate Firebase configuration early to avoid cryptic runtime errors
+const missingKeys: string[] = [];
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'your_api_key_here') missingKeys.push('NEXT_PUBLIC_FIREBASE_API_KEY');
+if (!firebaseConfig.authDomain) missingKeys.push('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN');
+if (!firebaseConfig.projectId) missingKeys.push('NEXT_PUBLIC_FIREBASE_PROJECT_ID');
+
+if (missingKeys.length > 0) {
+  const msg = `Firebase is not configured. Missing env vars: ${missingKeys.join(', ')}.\n` +
+    'Create .env.local at the project root and set your Firebase Web App config. Then restart the dev server.';
+  if (typeof window !== 'undefined') {
+    // Browser: throw to surface in UI
+    throw new Error(msg);
+  } else {
+    // Server/dev console: log and throw
+    // eslint-disable-next-line no-console
+    console.error(msg);
+    throw new Error(msg);
+  }
+}
+
 // Initialize Firebase app (prevent multiple initialization in development)
 let firebaseApp;
 if (!getApps().length) {
-  firebaseApp = initializeApp(firebaseConfig);
+  try {
+    firebaseApp = initializeApp(firebaseConfig);
+  } catch (e) {
+    // Provide more context in case of invalid config
+    // eslint-disable-next-line no-console
+    console.error('Failed to initialize Firebase app. Check your .env.local Firebase config values.');
+    throw e;
+  }
 } else {
   firebaseApp = getApps()[0];
 }
@@ -40,23 +67,23 @@ googleProvider.setCustomParameters({
 });
 
 // Development environment setup
-if (process.env.NODE_ENV === 'development') {
-  // Connect to Auth emulator if not already connected
-  if (!auth.config.emulator) {
+// Use explicit env flag to determine emulator usage (Cloud Firestore by default)
+const SHOULD_USE_FIRESTORE_EMULATOR =
+  process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+
+// Module-scoped flags to avoid reconnect attempts
+let __firestoreEmulatorConnected = false;
+
+if (typeof window !== 'undefined' && SHOULD_USE_FIRESTORE_EMULATOR) {
+  // Connect to Firestore emulator (once)
+  if (!__firestoreEmulatorConnected) {
     try {
-      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+      connectFirestoreEmulator(db, 'localhost', 8080);
+      __firestoreEmulatorConnected = true;
     } catch (error) {
       // Emulator connection might fail if not running, which is fine for development
-      console.log('Auth emulator not available, using live Firebase Auth');
+      console.log('Firestore emulator not available, using live Firestore');
     }
-  }
-
-  // Connect to Firestore emulator if not already connected
-  try {
-    connectFirestoreEmulator(db, 'localhost', 8080);
-  } catch (error) {
-    // Emulator connection might fail if not running, which is fine for development
-    console.log('Firestore emulator not available, using live Firestore');
   }
 }
 

@@ -2,7 +2,7 @@
 
 The authentication system for Learning.ai platform is now set up with the following features:
 
-## 🔐 Authentication Features
+## Authentication Features
 
 ### Sign-in Methods
 - **Google OAuth** - One-click sign-in with Google accounts
@@ -19,7 +19,7 @@ The authentication system for Learning.ai platform is now set up with the follow
    - `institution-admin` → `/dashboard/institution` 
    - `corporate-user` → `/dashboard/corporate`
 
-## 📁 File Structure
+## File Structure
 
 ```
 src/

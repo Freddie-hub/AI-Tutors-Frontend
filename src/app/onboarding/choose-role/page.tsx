@@ -30,7 +30,7 @@ const roleOptions: RoleOption[] = [
     id: 'institution-admin',
     title: 'Institution Admin',
     description: 'Manage learning programs, track student progress, and deploy AI tutors at scale.',
-    icon: '🏫',
+    icon: '',
     gradient: 'from-purple-500 to-pink-500',
     redirect: '/onboarding/institution'
   },
@@ -64,6 +64,12 @@ export default function ChooseRolePage() {
 
   const handleRoleSelect = async (role: UserRole) => {
     if (actionLoading) return;
+
+    // Ensure user is authenticated before proceeding
+    if (!user) {
+      router.push('/auth');
+      return;
+    }
 
     setSelectedRole(role);
     

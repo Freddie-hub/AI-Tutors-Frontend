@@ -61,10 +61,12 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
 
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profile, loading: authLoading } = useAuthUser();
+  const { user, profile, loading: authLoading, error: profileError } = useAuthUser();
   const [redirecting, setRedirecting] = useState(false);
 
-  const isLoading = authLoading || redirecting;
+  // If profile fetch errored (e.g., offline), treat as loading to avoid redirect loops/flicker
+  const hasProfileError = !!profileError;
+  const isLoading = authLoading || redirecting || hasProfileError;
   const currentRole = profile?.role || null;
   const isAuthenticated = !!user;
   const isOnboarded = profile?.onboarded || false;
@@ -81,8 +83,8 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
   }, [isPublicRoute, isAuthenticated, isOnboarded, isOnboardingRoute, allowedRoles, currentRole, requireOnboarded]);
 
   useEffect(() => {
-    // Don't redirect while still loading auth state
-    if (authLoading) return;
+  // Don't redirect while still loading auth state or when profile fetching errored (offline)
+  if (authLoading || hasProfileError) return;
 
     const performRedirect = (path: string, reason?: string) => {
       if (pathname !== path) {
@@ -161,6 +163,7 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
 
   }, [
     authLoading,
+    hasProfileError,
     isAuthenticated,
     profile,
     isOnboarded,
