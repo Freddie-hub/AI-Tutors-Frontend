@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import { useRouter } from 'next/navigation';
@@ -20,6 +20,12 @@ interface SignupFormData {
   displayName: string;
 }
 
+declare global {
+  interface Window {
+    google: any; // Google Identity Services
+  }
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const { isLoading: redirectLoading } = useAuthPageRedirect();
@@ -35,8 +41,54 @@ export default function AuthPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    displayName: ''
+    displayName: '',
   });
+
+  // Load Google Identity Services
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+        callback: handleGoogleResponse,
+        auto_select: false,
+        context: isSignup ? 'signup' : 'signin',
+      });
+    }
+  }, [isSignup]);
+
+  // Handle Google Sign-In response
+  const handleGoogleResponse = async (response: { credential?: string; error?: any }) => {
+    if (response.error) {
+      setError('Google authentication failed');
+      setLoading(false);
+      return;
+    }
+
+    if (response.credential) {
+      try {
+        const res = await loginWithGoogle(response.credential);
+        if (!res.success) throw new Error(res.message || 'Google login failed');
+        router.push('/dashboard');
+      } catch (err: any) {
+        setError(err.message || 'Google login failed');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   // ===== Validation =====
   const validateEmail = (email: string): string | null => {
@@ -99,16 +151,25 @@ export default function AuthPage() {
   };
 
   // ===== Handlers =====
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setError(null);
     setLoading(true);
+
+    if (!window.google) {
+      setError('Google Sign-In not loaded. Please try again.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await loginWithGoogle(); // Backend handles Google auth
-      if (!res.success) throw new Error(res.message || 'Google login failed');
-      router.push('/dashboard');
+      window.google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          setError('Google Sign-In was blocked or cancelled. Please allow popups.');
+          setLoading(false);
+        }
+      });
     } catch (err: any) {
-      setError(err.message || 'Google login failed');
-    } finally {
+      setError('Failed to initiate Google Sign-In');
       setLoading(false);
     }
   };

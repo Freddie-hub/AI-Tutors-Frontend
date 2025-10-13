@@ -8,7 +8,7 @@ import {
   Institution,
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api';
 
 async function parseJSONSafe(response: Response) {
   const text = await response.text();
@@ -34,7 +34,7 @@ async function requestApi<T = any>(
   const options: RequestInit = {
     method,
     headers: buildHeaders(),
-    credentials: 'include', // ensure session cookie is sent
+    credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   };
 
@@ -67,7 +67,6 @@ async function fetchWithCreds(
   };
 }
 
-// Session & profile
 export async function fetchProfile(): Promise<UserProfile | null> {
   try {
     const data = await requestApi<UserProfile>('/auth/session', 'GET');
@@ -82,49 +81,68 @@ export async function fetchInstitution(institutionId: string): Promise<Instituti
   return requestApi<Institution>(`/institutions/${institutionId}`, 'GET');
 }
 
-// 🧠 AUTH FUNCTIONS (backend-only)
-
-export async function signupWithEmail(email: string, password: string, displayName: string): Promise<ApiResponse> {
-  const res = await requestApi<ApiResponse>('/auth/signup', 'POST', { email, password, displayName });
-  return res;
+export async function signupWithEmail(
+  email: string,
+  password: string,
+  displayName: string,
+): Promise<ApiResponse> {
+  return requestApi<ApiResponse>('/auth/signup', 'POST', {
+    email,
+    password,
+    displayName,
+  });
 }
 
 export async function loginWithEmail(email: string, password: string): Promise<ApiResponse> {
-  const res = await requestApi<ApiResponse>('/auth/login', 'POST', { email, password });
-  return res;
+  return requestApi<ApiResponse>('/auth/login', 'POST', { email, password });
 }
 
 export async function loginWithGoogle(idToken: string): Promise<ApiResponse> {
-  const res = await requestApi<ApiResponse>('/auth/google', 'POST', { idToken });
-  return res;
+  return requestApi<ApiResponse>('/auth/google', 'POST', { idToken });
 }
 
 export async function logout(): Promise<ApiResponse> {
   return fetchWithCreds('/auth/logout', 'POST');
 }
 
-// Role & onboarding
 export async function setRole(data: { role: string; uid?: string }): Promise<ApiResponse> {
   const path = data.uid ? `/users/${data.uid}/set-role` : '/users/set-role';
   const { uid, ...body } = data as any;
   return fetchWithCreds(path, 'POST', body);
 }
 
-export async function onboardIndividualStudent(data: IndividualStudentOnboardingData, uid?: string): Promise<ApiResponse> {
-  const path = uid ? `/users/${uid}/individual-student-onboard` : '/users/individual-student-onboard';
+export async function onboardIndividualStudent(
+  data: IndividualStudentOnboardingData,
+  uid?: string,
+): Promise<ApiResponse> {
+  const path = uid
+    ? `/users/${uid}/individual-student-onboard`
+    : '/users/individual-student-onboard';
   return fetchWithCreds(path, 'POST', data);
 }
 
-export async function onboardInstitutionStudent(data: InstitutionStudentOnboardingData, uid?: string): Promise<ApiResponse> {
-  const path = uid ? `/users/${uid}/institution-student-onboard` : '/users/institution-student-onboard';
+export async function onboardInstitutionStudent(
+  data: InstitutionStudentOnboardingData,
+  uid?: string,
+): Promise<ApiResponse> {
+  const path = uid
+    ? `/users/${uid}/institution-student-onboard`
+    : '/users/institution-student-onboard';
   return fetchWithCreds(path, 'POST', data);
 }
 
-export async function onboardUpskillIndividual(data: UpskillIndividualOnboardingData, uid?: string): Promise<ApiResponse> {
-  const path = uid ? `/users/${uid}/upskill-individual-onboard` : '/users/upskill-individual-onboard';
+export async function onboardUpskillIndividual(
+  data: UpskillIndividualOnboardingData,
+  uid?: string,
+): Promise<ApiResponse> {
+  const path = uid
+    ? `/users/${uid}/upskill-individual-onboard`
+    : '/users/upskill-individual-onboard';
   return fetchWithCreds(path, 'POST', data);
 }
 
-export async function createInstitution(data: Omit<InstitutionAdminOnboardingData, 'admin_uid'>): Promise<ApiResponse> {
+export async function createInstitution(
+  data: Omit<InstitutionAdminOnboardingData, 'admin_uid'>,
+): Promise<ApiResponse> {
   return fetchWithCreds('/institutions/create', 'POST', data);
 }
