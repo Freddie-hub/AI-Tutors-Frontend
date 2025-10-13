@@ -1,5 +1,3 @@
-// Frontend authentication helpers (Firebase Auth only)
-// All Firestore/profile/institution data is handled by the backend API.
 
 import {
   signInWithEmailAndPassword,

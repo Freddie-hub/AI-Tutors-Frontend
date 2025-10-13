@@ -1,117 +1,109 @@
-import { IndividualStudentOnboardingData, InstitutionStudentOnboardingData, UpskillIndividualOnboardingData, InstitutionAdminOnboardingData, ApiResponse, UserProfile, Institution } from './types';
+// Lightweight client wrapper for Next.js app routes under /api
+// All functions include Firebase ID token in Authorization header when provided
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+import {
+  ApiResponse,
+  UserProfile,
+  Institution,
+  UserRole,
+  InstitutionAdminOnboardingData,
+  IndividualStudentOnboardingData,
+  InstitutionStudentOnboardingData,
+  UpskillIndividualOnboardingData
+} from './types';
 
-async function fetchWithToken(endpoint: string, method: string, token: string, body?: any): Promise<ApiResponse> {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    Authorization: `Bearer ${token}`,
+const jsonHeaders = (token?: string) => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
   };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+};
 
-  const options: RequestInit = {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  };
-
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    // Safely parse JSON (handle 204/empty body)
-    const text = await response.text();
-    const data = text ? JSON.parse(text) : {};
-
-    if (!response.ok) {
-      console.error(`[API] Request failed for ${endpoint}`, { status: response.status, data });
-      throw {
-        message: data.message || 'Request failed',
-        field: data.field,
-        code: data.code,
-        status: response.status,
-      };
-    }
-
-    return {
-      success: data.success ?? true,
-      redirectUrl: data.redirectUrl,
-      message: data.message,
-      field: data.field,
-    };
-  } catch (error: any) {
-    console.error(`[API] Error calling ${endpoint}`, error);
-    throw {
-      message: error.message || 'An unexpected error occurred',
-      field: error.field,
-      code: error.code,
-    };
-  }
-}
-
-// Generic JSON GET with token returning typed payload
-async function getJSONWithToken<T>(endpoint: string, token: string): Promise<T> {
-  const headers: HeadersInit = {
-    Accept: 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'GET', headers });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : {};
+async function apiFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, init);
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw {
-      message: data.message || 'Request failed',
-      code: data.code,
-      status: res.status,
-    };
+    const message = (data && (data.message || data.error)) || `Request failed with ${res.status}`;
+    throw new Error(message);
   }
   return data as T;
 }
 
-// Public: fetch user profile from backend
-export async function fetchProfile(uid: string, token: string): Promise<UserProfile> {
-  return getJSONWithToken<UserProfile>(`/users/${uid}`, token);
+// Set or update the user's role
+export async function setRole(
+  uid: string,
+  body: { role: UserRole },
+  token?: string
+): Promise<ApiResponse> {
+  return apiFetch<ApiResponse>(`/api/profile/role`, {
+    method: 'POST',
+    headers: jsonHeaders(token),
+    body: JSON.stringify({ uid, ...body })
+  });
 }
 
-// Public: fetch institution by id from backend
-export async function fetchInstitution(institutionId: string, token: string): Promise<Institution> {
-  return getJSONWithToken<Institution>(`/institutions/${institutionId}`, token);
+// Create an institution (admin onboarding)
+export async function createInstitution(
+  payload: InstitutionAdminOnboardingData,
+  token?: string
+): Promise<ApiResponse> {
+  return apiFetch<ApiResponse>(`/api/institutions`, {
+    method: 'POST',
+    headers: jsonHeaders(token),
+    body: JSON.stringify(payload)
+  });
 }
 
-export async function setRole(uid: string, data: { role: string }, token: string): Promise<ApiResponse> {
-  console.log('[API] setRole called', { uid, role: data.role });
-  return fetchWithToken(`/users/${uid}/set-role`, 'POST', token, data);
+// Fetch profile by uid
+export async function fetchProfile(uid: string, token?: string): Promise<UserProfile> {
+  return apiFetch<UserProfile>(`/api/profile/${encodeURIComponent(uid)}`, {
+    headers: jsonHeaders(token)
+  });
 }
 
+// Fetch institution by id
+export async function fetchInstitution(id: string, token?: string): Promise<Institution> {
+  return apiFetch<Institution>(`/api/institution/${encodeURIComponent(id)}`, {
+    headers: jsonHeaders(token)
+  });
+}
+
+// Onboard: individual student
 export async function onboardIndividualStudent(
   uid: string,
   data: IndividualStudentOnboardingData,
-  token: string
+  token?: string
 ): Promise<ApiResponse> {
-  console.log('[API] onboardIndividualStudent called', { uid, data });
-  return fetchWithToken(`/users/${uid}/individual-student-onboard`, 'POST', token, data);
+  return apiFetch<ApiResponse>(`/api/onboarding/student/individual`, {
+    method: 'POST',
+    headers: jsonHeaders(token),
+    body: JSON.stringify({ uid, ...data })
+  });
 }
 
+// Onboard: institution student
 export async function onboardInstitutionStudent(
   uid: string,
   data: InstitutionStudentOnboardingData,
-  token: string
+  token?: string
 ): Promise<ApiResponse> {
-  console.log('[API] onboardInstitutionStudent called', { uid, data });
-  return fetchWithToken(`/users/${uid}/institution-student-onboard`, 'POST', token, data);
+  return apiFetch<ApiResponse>(`/api/onboarding/student/institution`, {
+    method: 'POST',
+    headers: jsonHeaders(token),
+    body: JSON.stringify({ uid, ...data })
+  });
 }
 
+// Onboard: upskill individual
 export async function onboardUpskillIndividual(
   uid: string,
   data: UpskillIndividualOnboardingData,
-  token: string
+  token?: string
 ): Promise<ApiResponse> {
-  console.log('[API] onboardUpskillIndividual called', { uid, data });
-  return fetchWithToken(`/users/${uid}/upskill-individual-onboard`, 'POST', token, data);
-}
-
-export async function createInstitution(
-  data: InstitutionAdminOnboardingData,
-  token: string
-): Promise<ApiResponse> {
-  console.log('[API] createInstitution called', { data });
-  return fetchWithToken('/institutions/create', 'POST', token, data);
+  return apiFetch<ApiResponse>(`/api/onboarding/upskill`, {
+    method: 'POST',
+    headers: jsonHeaders(token),
+    body: JSON.stringify({ uid, ...data })
+  });
 }

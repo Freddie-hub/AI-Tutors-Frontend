@@ -3,6 +3,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthUser, useAuthActions } from '@/lib/hooks';
+import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
 import { OnboardingContext } from '@/lib/context/OnboardingContext';
 import { setRole } from '@/lib/api';
 
@@ -46,28 +47,12 @@ const roleOptions: RoleOption[] = [
 
 export default function ChooseRolePage() {
   const router = useRouter();
-  const { user, profile } = useAuthUser();
+  const { user, profile, loading: authLoading, error: profileError } = useAuthUser();
+  const { isLoading: guardLoading } = useOnboardingProtection();
   const { loading: actionLoading, setError } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Check for institution-student and redirect
-  useEffect(() => {
-    if (!user) {
-      console.log('[ChooseRole] no user detected, redirecting to /auth');
-      router.push('/auth');
-      return;
-    }
-
-    if (profile?.role === 'institution-student' && !profile?.onboarded) {
-      console.log('[ChooseRole] institution-student detected, redirecting to /onboarding/student');
-      router.push('/onboarding/student');
-      return;
-    }
-
-    setIsLoading(false);
-  }, [user, profile, router]);
+  const isLoading = authLoading || guardLoading;
 
   // Debug: component lifecycle
   useEffect(() => {
@@ -82,8 +67,18 @@ export default function ChooseRolePage() {
       actionLoading,
       selectedRole,
       userUid: user?.uid ?? null,
+      profileLoaded: !!profile,
+      profileError,
     });
-  }, [isLoading, actionLoading, selectedRole, user]);
+  }, [isLoading, actionLoading, selectedRole, user, profile, profileError]);
+
+  useEffect(() => {
+    if (profileError) {
+      console.error('[ChooseRole] profile fetch error', profileError);
+      setError(profileError);
+      setIsOnboarding(false);
+    }
+  }, [profileError, setError, setIsOnboarding]);
 
   if (isLoading) {
     console.log('[ChooseRole] showing loading spinner');
@@ -92,6 +87,19 @@ export default function ChooseRolePage() {
         <div className="relative">
           <div className="animate-spin rounded-full h-12 w-12 border-2 border-transparent bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-border"></div>
           <div className="absolute inset-0 rounded-full border-2 border-slate-700"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="bg-red-500/10 border border-red-400/20 rounded-3xl p-8 max-w-xl text-center text-white">
+          <h1 className="text-2xl font-semibold mb-4">We ran into an issue</h1>
+          <p className="text-slate-200">
+            We couldn't load your profile information yet, so role selection is temporarily disabled. Check the server logs for details and try refreshing once the issue is resolved.
+          </p>
         </div>
       </div>
     );
@@ -112,7 +120,7 @@ export default function ChooseRolePage() {
 
       if (response.success && response.redirectUrl) {
         console.log('[ChooseRole] setRole successful, navigating to', response.redirectUrl);
-        router.push(response.redirectUrl);
+        router.replace(response.redirectUrl);
       } else {
         throw new Error(response.message || 'Failed to set role');
       }
@@ -121,14 +129,6 @@ export default function ChooseRolePage() {
       setError(err.message || 'Failed to set role. Please try again.');
     } finally {
       setIsOnboarding(false);
-    }
-
-    const selectedOption = roleOptions.find(option => option.id === role);
-    if (selectedOption) {
-      console.log('[ChooseRole] navigating to', selectedOption.redirect);
-      router.push(selectedOption.redirect);
-    } else {
-      console.warn('[ChooseRole] no redirect option found for role', role);
     }
   };
 

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
+import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
 import { OnboardingContext } from '@/lib/context/OnboardingContext';
 import { createInstitution } from '@/lib/api';
 
@@ -86,6 +87,7 @@ export default function InstitutionOnboardingPage() {
   const { user, loading } = useAuthUser();
   const { setError, loading: actionLoading } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
+  const { isLoading: guardLoading } = useOnboardingProtection();
   
   const form = useFormState<InstitutionFormData>({
     name: '',
@@ -94,7 +96,7 @@ export default function InstitutionOnboardingPage() {
     numberOfStudents: ''
   });
 
-  if (loading) {
+  if (loading || guardLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="relative">
@@ -105,10 +107,14 @@ export default function InstitutionOnboardingPage() {
     );
   }
 
-  if (!user) {
-    router.push('/auth');
-    return null;
-  }
+  // Redirect unauthenticated users efficiently (only in an effect)
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/auth');
+    }
+  }, [loading, user, router]);
+
+  if (!user) return null;
 
   const validateForm = (): boolean => {
     form.clearErrors();

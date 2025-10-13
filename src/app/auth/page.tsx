@@ -51,7 +51,7 @@ export default function AuthPage() {
     const { role, onboarded } = profile || {};
 
     if (!role) {
-      router.push('/onboarding/choose-role');
+      router.replace('/onboarding/choose-role');
       return;
     }
 
@@ -59,16 +59,16 @@ export default function AuthPage() {
       switch (role) {
         case 'individual-student':
         case 'institution-student':
-          router.push('/onboarding/student');
+          router.replace('/onboarding/student');
           break;
         case 'institution-admin':
-          router.push('/onboarding/institution');
+          router.replace('/onboarding/institution');
           break;
         case 'upskill-individual':
-          router.push('/onboarding/upskill');
+          router.replace('/onboarding/upskill');
           break;
         default:
-          router.push('/onboarding/choose-role');
+          router.replace('/onboarding/choose-role');
       }
       return;
     }
@@ -77,16 +77,16 @@ export default function AuthPage() {
     switch (role) {
       case 'individual-student':
       case 'institution-student':
-        router.push('/dashboard/student');
+        router.replace('/dashboard/student');
         break;
       case 'institution-admin':
-        router.push('/dashboard/admin');
+        router.replace('/dashboard/institution');
         break;
       case 'upskill-individual':
-        router.push('/dashboard/upskill');
+        router.replace('/dashboard/student');
         break;
       default:
-        router.push('/onboarding/choose-role');
+        router.replace('/onboarding/choose-role');
     }
   }, [user, profile, userLoading, router]);
 

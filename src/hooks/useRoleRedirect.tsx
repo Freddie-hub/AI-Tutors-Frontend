@@ -17,21 +17,21 @@ interface RoleRedirectResult {
   redirecting: boolean;
 }
 
-// Define route mappings for each role
+// Define route mappings for each role (dashboard destinations)
 const ROLE_ROUTES = {
   'individual-student': '/dashboard/student',
+  'institution-student': '/dashboard/student',
   'institution-admin': '/dashboard/institution',
+  'upskill-individual': '/dashboard/student',
+  // Optional future role
   'corporate-user': '/dashboard/corporate'
 } as const;
 
 // Define public routes that don't require authentication
+// Note: onboarding routes are protected; only marketing/legal pages and auth are public.
 const PUBLIC_ROUTES = [
-  '/auth',
-  '/onboarding/choose-role',
-  '/onboarding/student',
-  '/onboarding/institution',
-  '/onboarding/corporate',
   '/',
+  '/auth',
   '/about',
   '/contact',
   '/privacy',
@@ -43,8 +43,16 @@ const ONBOARDING_ROUTES = [
   '/onboarding/choose-role',
   '/onboarding/student',
   '/onboarding/institution',
-  '/onboarding/corporate'
+  '/onboarding/upskill'
 ];
+
+// Map of role to the specific onboarding route they must use
+const ROLE_ONBOARDING_ROUTE: Record<string, string> = {
+  'individual-student': '/onboarding/student',
+  'institution-student': '/onboarding/student',
+  'institution-admin': '/onboarding/institution',
+  'upskill-individual': '/onboarding/upskill'
+};
 
 /**
  * Custom hook for role-based routing and access control
@@ -64,9 +72,10 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
   const { user, profile, loading: authLoading, error: profileError } = useAuthUser();
   const [redirecting, setRedirecting] = useState(false);
 
-  // If profile fetch errored (e.g., offline), treat as loading to avoid redirect loops/flicker
+  // Do NOT block routing on profile fetch errors (e.g., profile not created yet or offline).
+  // We want users to still reach onboarding/choose-role even if profile isn't available.
   const hasProfileError = !!profileError;
-  const isLoading = authLoading || redirecting || hasProfileError;
+  const isLoading = authLoading || redirecting;
   const currentRole = profile?.role || null;
   const isAuthenticated = !!user;
   const isOnboarded = profile?.onboarded || false;
@@ -83,14 +92,14 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
   }, [isPublicRoute, isAuthenticated, isOnboarded, isOnboardingRoute, allowedRoles, currentRole, requireOnboarded]);
 
   useEffect(() => {
-  // Don't redirect while still loading auth state or when profile fetching errored (offline)
-  if (authLoading || hasProfileError) return;
+  // Don't redirect while still loading auth state. Allow redirects even if profile fetch errored.
+  if (authLoading) return;
 
     const performRedirect = (path: string, reason?: string) => {
       if (pathname !== path) {
         setRedirecting(true);
         console.log(`Redirecting to ${path}${reason ? ` - ${reason}` : ''}`);
-        router.push(path);
+        router.replace(path);
         // Reset redirecting state after a delay to prevent flicker
         setTimeout(() => setRedirecting(false), 1000);
       }
@@ -126,16 +135,25 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       return;
     }
 
-    // Handle users without profile
-    if (isAuthenticated && !profile && !isOnboardingRoute && !isPublicRoute) {
-      performRedirect('/onboarding/choose-role', 'No user profile found');
+    // Enforce that role must be chosen before accessing other onboarding routes
+    if (isAuthenticated && (!profile || !currentRole)) {
+      if (pathname !== '/onboarding/choose-role') {
+        performRedirect('/onboarding/choose-role', 'Role not selected yet');
+      }
       return;
     }
 
-    // Handle users who haven't completed onboarding
-    if (isAuthenticated && profile && !isOnboarded && !isOnboardingRoute && !isPublicRoute) {
-      performRedirect('/onboarding/choose-role', 'User onboarding incomplete');
-      return;
+    // Handle users who haven't completed onboarding: only allow role-specific onboarding route
+    if (isAuthenticated && profile && currentRole && !isOnboarded) {
+      const expectedOnboarding = ROLE_ONBOARDING_ROUTE[currentRole];
+      if (isOnboardingRoute && pathname !== expectedOnboarding) {
+        performRedirect(expectedOnboarding, 'Redirecting to role-specific onboarding');
+        return;
+      }
+      if (!isOnboardingRoute && !isPublicRoute) {
+        performRedirect(expectedOnboarding || '/onboarding/choose-role', 'User onboarding incomplete');
+        return;
+      }
     }
 
     // Handle role-based access control
@@ -163,7 +181,6 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
 
   }, [
     authLoading,
-    hasProfileError,
     isAuthenticated,
     profile,
     isOnboarded,

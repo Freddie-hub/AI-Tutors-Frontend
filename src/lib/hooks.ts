@@ -49,7 +49,15 @@ export function useUserProfile(uid?: string) {
         const data = await fetchProfile(uid, token);
         if (!cancelled) setProfile(data);
       } catch (e: any) {
-        if (!cancelled) setError(e?.message || 'Failed to load profile');
+        if (!cancelled) {
+          const message = e?.message || 'Failed to load profile';
+          console.error('[useUserProfile] Failed to fetch profile', {
+            uid,
+            message,
+            error: e
+          });
+          setError(message);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
