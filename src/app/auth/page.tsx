@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { FcGoogle } from 'react-icons/fc';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import { useRouter } from 'next/navigation';
 import { useFormState } from '@/lib/hooks';
-import { loginWithGoogle, loginWithEmail, signupWithEmail } from '@/lib/api';
+import { loginWithEmail, signupWithEmail } from '@/lib/api';
 import { useAuthPageRedirect } from '@/hooks/useRoleRedirect';
 
 interface LoginFormData {
@@ -34,7 +33,7 @@ export default function AuthPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    displayName: ''
+    displayName: '',
   });
 
   const validateEmail = (email: string): string | null => {
@@ -96,31 +95,16 @@ export default function AuthPage() {
     return isValid;
   };
 
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await loginWithGoogle();
-      if (!res.success) throw new Error(res.message || 'Google login failed');
-    } catch (err: any) {
-      setError(err.message || 'Google login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     if (!validateLoginForm()) return;
 
     setLoading(true);
     try {
       const res = await loginWithEmail(loginForm.values.email, loginForm.values.password);
-      if (!res.success) {
-        throw new Error(res.message || 'Login failed');
-      }
+      if (!res.success) throw new Error(res.message || 'Login failed');
+      router.push(res.redirectUrl || '/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally {
@@ -131,7 +115,6 @@ export default function AuthPage() {
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     if (!validateSignupForm()) return;
 
     setLoading(true);
@@ -139,11 +122,10 @@ export default function AuthPage() {
       const res = await signupWithEmail(
         signupForm.values.email,
         signupForm.values.password,
-        signupForm.values.displayName,
+        signupForm.values.displayName
       );
-      if (!res.success) {
-        throw new Error(res.message || 'Signup failed');
-      }
+      if (!res.success) throw new Error(res.message || 'Signup failed');
+      router.push(res.redirectUrl || '/dashboard'); // auto-login redirect
     } catch (err: any) {
       setError(err.message || 'Signup failed');
     } finally {
@@ -180,34 +162,17 @@ export default function AuthPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FcGoogle className="h-5 w-5 mr-3" />
-            {isSignup ? 'Sign up with Google' : 'Sign in with Google'}
-          </button>
-
-          <div className="mt-6 mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue with email</span>
-              </div>
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200">
+              <p className="text-red-600 text-sm">{error}</p>
             </div>
-          </div>
-
-          {error && <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200"><p className="text-red-600 text-sm">{error}</p></div>}
+          )}
 
           <form onSubmit={isSignup ? handleEmailSignup : handleEmailLogin} className="space-y-4">
             {isSignup && (
               <div>
-                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                 <input
-                  id="displayName"
                   type="text"
                   value={signupForm.values.displayName}
                   onChange={(e) => signupForm.setValue('displayName', e.target.value)}
@@ -219,9 +184,8 @@ export default function AuthPage() {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
-                id="email"
                 type="email"
                 value={isSignup ? signupForm.values.email : loginForm.values.email}
                 onChange={(e) => isSignup ? signupForm.setValue('email', e.target.value) : loginForm.setValue('email', e.target.value)}
@@ -234,10 +198,9 @@ export default function AuthPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <div className="relative">
                 <input
-                  id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={isSignup ? signupForm.values.password : loginForm.values.password}
                   onChange={(e) => isSignup ? signupForm.setValue('password', e.target.value) : loginForm.setValue('password', e.target.value)}
@@ -253,10 +216,9 @@ export default function AuthPage() {
 
             {isSignup && (
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
                 <div className="relative">
                   <input
-                    id="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={signupForm.values.confirmPassword}
                     onChange={(e) => signupForm.setValue('confirmPassword', e.target.value)}
@@ -276,14 +238,7 @@ export default function AuthPage() {
               disabled={loading}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  {isSignup ? 'Creating Account...' : 'Signing In...'}
-                </div>
-              ) : (
-                isSignup ? 'Create Account' : 'Sign In'
-              )}
+              {loading ? (isSignup ? 'Creating Account...' : 'Signing In...') : (isSignup ? 'Create Account' : 'Sign In')}
             </button>
           </form>
 
@@ -295,17 +250,6 @@ export default function AuthPage() {
               </button>
             </p>
           </div>
-
-          {!isSignup && (
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => console.log('[AuthPage] Forgot password clicked')}
-                className="text-sm text-blue-600 hover:text-blue-500 focus:outline-none focus:underline"
-              >
-                Forgot your password?
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="text-center text-sm text-gray-500">
