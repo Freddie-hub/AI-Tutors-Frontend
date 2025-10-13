@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
+import { useAuthPageRedirect } from '@/hooks/useRoleRedirect';
 import { User } from 'firebase/auth';
 
 interface UserProfile {
@@ -29,7 +30,9 @@ interface SignupFormData {
 
 export default function AuthPage() {
   const router = useRouter();
-  const { user, profile, loading: userLoading } = useAuthUser(); // No type argument needed
+  const { user, profile, loading: userLoading } = useAuthUser();
+  // Centralized, loop-safe redirect handling for the auth page
+  const { isLoading: redirectLoading } = useAuthPageRedirect();
   const { withErrorHandling, loading: actionLoading, error, clearError } = useAuthActions();
   const [isSignup, setIsSignup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -43,52 +46,7 @@ export default function AuthPage() {
     confirmPassword: '',
     displayName: ''
   });
-
-  // Redirect logic
-  useEffect(() => {
-    if (userLoading || !user) return;
-
-    const { role, onboarded } = profile || {};
-
-    if (!role) {
-      router.push('/onboarding/choose-role');
-      return;
-    }
-
-    if (!onboarded) {
-      switch (role) {
-        case 'individual-student':
-        case 'institution-student':
-          router.push('/onboarding/student');
-          break;
-        case 'institution-admin':
-          router.push('/onboarding/institution');
-          break;
-        case 'upskill-individual':
-          router.push('/onboarding/upskill');
-          break;
-        default:
-          router.push('/onboarding/choose-role');
-      }
-      return;
-    }
-
-    // Redirect onboarded users
-    switch (role) {
-      case 'individual-student':
-      case 'institution-student':
-        router.push('/dashboard/student');
-        break;
-      case 'institution-admin':
-        router.push('/dashboard/admin');
-        break;
-      case 'upskill-individual':
-        router.push('/dashboard/upskill');
-        break;
-      default:
-        router.push('/onboarding/choose-role');
-    }
-  }, [user, profile, userLoading, router]);
+  // All redirect behavior is handled by useAuthPageRedirect; keep UI simple here
 
   // Validation
   const validateEmail = (email: string): string | null => {
@@ -234,7 +192,7 @@ export default function AuthPage() {
     signupForm.reset();
   };
 
-  if (userLoading) {
+  if (userLoading || redirectLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">

@@ -20,7 +20,9 @@ interface RoleRedirectResult {
 // Define route mappings for each role
 const ROLE_ROUTES = {
   'individual-student': '/dashboard/student',
+  'institution-student': '/dashboard/student',
   'institution-admin': '/dashboard/institution',
+  'upskill-individual': '/dashboard/student',
   'corporate-user': '/dashboard/corporate'
 } as const;
 

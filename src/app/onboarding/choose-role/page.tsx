@@ -46,28 +46,38 @@ const roleOptions: RoleOption[] = [
 
 export default function ChooseRolePage() {
   const router = useRouter();
-  const { user, profile } = useAuthUser();
+  const { user, profile, loading: authLoading } = useAuthUser();
   const { loading: actionLoading, setError } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [navigating, setNavigating] = useState(false);
 
   // Check for institution-student and redirect
   useEffect(() => {
+    // Wait until auth settles; don't bounce while loading
+    if (authLoading) return;
+
     if (!user) {
       console.log('[ChooseRole] no user detected, redirecting to /auth');
-      router.push('/auth');
+      if (!navigating) {
+        setNavigating(true);
+        router.push('/auth');
+      }
       return;
     }
 
     if (profile?.role === 'institution-student' && !profile?.onboarded) {
       console.log('[ChooseRole] institution-student detected, redirecting to /onboarding/student');
-      router.push('/onboarding/student');
+      if (!navigating) {
+        setNavigating(true);
+        router.push('/onboarding/student');
+      }
       return;
     }
 
     setIsLoading(false);
-  }, [user, profile, router]);
+  }, [user, profile, router, navigating, authLoading]);
 
   // Debug: component lifecycle
   useEffect(() => {
@@ -106,30 +116,33 @@ export default function ChooseRolePage() {
 
     setIsOnboarding(true);
     try {
-      console.log('[ChooseRole] calling setRole API', { uid: user.uid, role });
-      const token = await user.getIdToken();
-      const response = await setRole(user.uid, { role }, token);
+  console.log('[ChooseRole] calling setRole API', { uid: user.uid, role });
+  const token = await user.getIdToken();
+  const response = await setRole(user.uid, { role }, token);
 
-      if (response.success && response.redirectUrl) {
-        console.log('[ChooseRole] setRole successful, navigating to', response.redirectUrl);
-        router.push(response.redirectUrl);
-      } else {
-        throw new Error(response.message || 'Failed to set role');
-      }
-    } catch (err: any) {
-      console.error('[ChooseRole] setRole error', err);
-      setError(err.message || 'Failed to set role. Please try again.');
-    } finally {
-      setIsOnboarding(false);
+  if (response.success && response.redirectUrl) {
+    console.log('[ChooseRole] setRole successful, navigating to', response.redirectUrl);
+    if (!navigating) {
+      setNavigating(true);
+      router.push(response.redirectUrl);
     }
-
+  } else if (response.success) {
     const selectedOption = roleOptions.find(option => option.id === role);
-    if (selectedOption) {
-      console.log('[ChooseRole] navigating to', selectedOption.redirect);
+    if (selectedOption && !navigating) {
+      console.log('[ChooseRole] fallback navigating to', selectedOption.redirect);
+      setNavigating(true);
       router.push(selectedOption.redirect);
-    } else {
-      console.warn('[ChooseRole] no redirect option found for role', role);
     }
+  } else {
+    throw new Error(response.message || 'Failed to set role');
+  }
+} catch (err: any) {
+  console.error('[ChooseRole] setRole error', err);
+  setError(err.message || 'Failed to set role. Please try again.');
+} finally {
+  setIsOnboarding(false);
+}
+
   };
 
   return (
