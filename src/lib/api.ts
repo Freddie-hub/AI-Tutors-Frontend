@@ -29,12 +29,12 @@ function buildHeaders(): HeadersInit {
 async function requestApi<T = any>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  body?: any
+  body?: any,
 ): Promise<T> {
   const options: RequestInit = {
     method,
     headers: buildHeaders(),
-    credentials: 'include', // send cookies for session
+    credentials: 'include', // ensure session cookie is sent
     body: body !== undefined ? JSON.stringify(body) : undefined,
   };
 
@@ -56,7 +56,7 @@ async function requestApi<T = any>(
 async function fetchWithCreds(
   endpoint: string,
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  body?: any
+  body?: any,
 ): Promise<ApiResponse> {
   const data = await requestApi<any>(endpoint, method, body);
   return {
@@ -67,77 +67,64 @@ async function fetchWithCreds(
   };
 }
 
-async function getWithCreds<T>(endpoint: string): Promise<T> {
-  return requestApi<T>(endpoint, 'GET');
-}
-
-// =========================
-// Auth
-// =========================
-
-export async function signupWithEmail(email: string, password: string, displayName: string): Promise<ApiResponse> {
-  return fetchWithCreds('/auth/signup', 'POST', { email, password, displayName });
-}
-
-export async function loginWithEmail(email: string, password: string): Promise<ApiResponse> {
-  return fetchWithCreds('/auth/login', 'POST', { email, password });
-}
-
-export async function logout(): Promise<ApiResponse> {
-  return fetchWithCreds('/auth/logout', 'POST');
-}
-
+// Session & profile
 export async function fetchProfile(): Promise<UserProfile | null> {
   try {
-    return await getWithCreds<UserProfile>('/auth/session');
+    const data = await requestApi<UserProfile>('/auth/session', 'GET');
+    return data;
   } catch (e: any) {
     if (e?.status === 401) return null;
     throw e;
   }
 }
 
-// =========================
-// Institutions
-// =========================
-
 export async function fetchInstitution(institutionId: string): Promise<Institution> {
-  return getWithCreds<Institution>(`/institutions/${institutionId}`);
+  return requestApi<Institution>(`/institutions/${institutionId}`, 'GET');
 }
 
-export async function createInstitution(data: Omit<InstitutionAdminOnboardingData, 'admin_uid'>): Promise<ApiResponse> {
-  return fetchWithCreds('/institutions/create', 'POST', data);
+// 🧠 AUTH FUNCTIONS (backend-only)
+
+export async function signupWithEmail(email: string, password: string, displayName: string): Promise<ApiResponse> {
+  const res = await requestApi<ApiResponse>('/auth/signup', 'POST', { email, password, displayName });
+  return res;
 }
 
-// =========================
-// Roles & Onboarding
-// =========================
+export async function loginWithEmail(email: string, password: string): Promise<ApiResponse> {
+  const res = await requestApi<ApiResponse>('/auth/login', 'POST', { email, password });
+  return res;
+}
 
+export async function loginWithGoogle(idToken: string): Promise<ApiResponse> {
+  const res = await requestApi<ApiResponse>('/auth/google', 'POST', { idToken });
+  return res;
+}
+
+export async function logout(): Promise<ApiResponse> {
+  return fetchWithCreds('/auth/logout', 'POST');
+}
+
+// Role & onboarding
 export async function setRole(data: { role: string; uid?: string }): Promise<ApiResponse> {
-  const path = data.uid ? `/users/${data.uid}/set-role` : `/users/set-role`;
+  const path = data.uid ? `/users/${data.uid}/set-role` : '/users/set-role';
   const { uid, ...body } = data as any;
   return fetchWithCreds(path, 'POST', body);
 }
 
-export async function onboardIndividualStudent(
-  data: IndividualStudentOnboardingData,
-  uid?: string
-): Promise<ApiResponse> {
-  const path = uid ? `/users/${uid}/individual-student-onboard` : `/users/individual-student-onboard`;
+export async function onboardIndividualStudent(data: IndividualStudentOnboardingData, uid?: string): Promise<ApiResponse> {
+  const path = uid ? `/users/${uid}/individual-student-onboard` : '/users/individual-student-onboard';
   return fetchWithCreds(path, 'POST', data);
 }
 
-export async function onboardInstitutionStudent(
-  data: InstitutionStudentOnboardingData,
-  uid?: string
-): Promise<ApiResponse> {
-  const path = uid ? `/users/${uid}/institution-student-onboard` : `/users/institution-student-onboard`;
+export async function onboardInstitutionStudent(data: InstitutionStudentOnboardingData, uid?: string): Promise<ApiResponse> {
+  const path = uid ? `/users/${uid}/institution-student-onboard` : '/users/institution-student-onboard';
   return fetchWithCreds(path, 'POST', data);
 }
 
-export async function onboardUpskillIndividual(
-  data: UpskillIndividualOnboardingData,
-  uid?: string
-): Promise<ApiResponse> {
-  const path = uid ? `/users/${uid}/upskill-individual-onboard` : `/users/upskill-individual-onboard`;
+export async function onboardUpskillIndividual(data: UpskillIndividualOnboardingData, uid?: string): Promise<ApiResponse> {
+  const path = uid ? `/users/${uid}/upskill-individual-onboard` : '/users/upskill-individual-onboard';
   return fetchWithCreds(path, 'POST', data);
+}
+
+export async function createInstitution(data: Omit<InstitutionAdminOnboardingData, 'admin_uid'>): Promise<ApiResponse> {
+  return fetchWithCreds('/institutions/create', 'POST', data);
 }
