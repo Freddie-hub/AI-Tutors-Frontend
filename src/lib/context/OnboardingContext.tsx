@@ -1,18 +1,18 @@
 "use client";
 
-import { createContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
-interface OnboardingContextType {
+interface OnboardingContextValue {
   isOnboarding: boolean;
-  setIsOnboarding: (value: boolean) => void;
+  setIsOnboarding: (v: boolean) => void;
 }
 
-export const OnboardingContext = createContext<OnboardingContextType>({
+export const OnboardingContext = createContext<OnboardingContextValue>({
   isOnboarding: false,
   setIsOnboarding: () => {},
 });
 
-export function OnboardingProvider({ children }: { children: ReactNode }) {
+export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [isOnboarding, setIsOnboarding] = useState(false);
 
   return (

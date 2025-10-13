@@ -1,33 +1,21 @@
-// React hooks for Firebase authentication
-// Frontend handles authentication only; profile/institution data comes from backend API
+// Frontend uses backend session cookies; all data comes from API calls.
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
 import { UserProfile, Institution } from './types';
 import { fetchProfile, fetchInstitution } from './api';
 
 // Hook for authentication state
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  return { user, loading };
+  // Deprecated local auth state. We rely entirely on session profile.
+  // Kept for compatibility; returns loading=false and user=null.
+  const [loading] = useState(false);
+  return { user: null, loading } as const;
 }
 
 // Hook for user profile data
-export function useUserProfile(uid?: string) {
+export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,18 +23,10 @@ export function useUserProfile(uid?: string) {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      if (!uid) {
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
         setError(null);
-        const token = await auth.currentUser?.getIdToken();
-        if (!token) throw new Error('Not authenticated');
-        const data = await fetchProfile(uid, token);
+        const data = await fetchProfile();
         if (!cancelled) setProfile(data);
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Failed to load profile');
@@ -56,7 +36,7 @@ export function useUserProfile(uid?: string) {
     };
     run();
     return () => { cancelled = true; };
-  }, [uid]);
+  }, []);
 
   return { profile, loading, error };
 }
@@ -70,17 +50,11 @@ export function useInstitution(institutionId?: string) {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      if (!institutionId) {
-        setInstitution(null);
-        setLoading(false);
-        return;
-      }
+      if (!institutionId) { setInstitution(null); setLoading(false); return; }
       try {
         setLoading(true);
         setError(null);
-        const token = await auth.currentUser?.getIdToken();
-        if (!token) throw new Error('Not authenticated');
-        const data = await fetchInstitution(institutionId, token);
+        const data = await fetchInstitution(institutionId);
         if (!cancelled) setInstitution(data);
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Failed to load institution');
@@ -97,21 +71,20 @@ export function useInstitution(institutionId?: string) {
 
 // Combined hook for authenticated user with profile
 export function useAuthUser() {
-  const { user, loading: authLoading } = useAuth();
-  const { profile, loading: profileLoading, error } = useUserProfile(user?.uid);
+  const { profile, loading: profileLoading, error } = useUserProfile();
   const { institution, loading: institutionLoading } = useInstitution(profile?.institutionId);
 
-  const loading = authLoading || profileLoading || institutionLoading;
+  const loading = profileLoading || institutionLoading;
 
   // Profile creation now handled by backend upon first auth; no direct Firestore writes here
 
   return {
-    user,
+    user: profile, // treat profile as the authenticated user object for the UI
     profile,
     institution,
     loading,
     error,
-    isAuthenticated: !!user,
+    isAuthenticated: !!profile,
     isIndependent: profile?.isIndependent ?? false,
     isInstitutionLinked: !!(profile?.institutionId && institution)
   };

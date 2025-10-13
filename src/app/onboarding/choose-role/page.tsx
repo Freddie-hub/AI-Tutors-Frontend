@@ -46,20 +46,17 @@ const roleOptions: RoleOption[] = [
 
 export default function ChooseRolePage() {
   const router = useRouter();
-  const { user, profile, loading: authLoading } = useAuthUser();
+  const { profile, loading: authLoading } = useAuthUser();
   const { loading: actionLoading, setError } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [navigating, setNavigating] = useState(false);
 
-  // Check for institution-student and redirect
   useEffect(() => {
-    // Wait until auth settles; don't bounce while loading
     if (authLoading) return;
 
-    if (!user) {
-      console.log('[ChooseRole] no user detected, redirecting to /auth');
+    if (!profile) {
       if (!navigating) {
         setNavigating(true);
         router.push('/auth');
@@ -68,7 +65,6 @@ export default function ChooseRolePage() {
     }
 
     if (profile?.role === 'institution-student' && !profile?.onboarded) {
-      console.log('[ChooseRole] institution-student detected, redirecting to /onboarding/student');
       if (!navigating) {
         setNavigating(true);
         router.push('/onboarding/student');
@@ -77,26 +73,37 @@ export default function ChooseRolePage() {
     }
 
     setIsLoading(false);
-  }, [user, profile, router, navigating, authLoading]);
+  }, [profile, router, navigating, authLoading]);
 
-  // Debug: component lifecycle
-  useEffect(() => {
-    console.log('[ChooseRole] mounted');
-    return () => console.log('[ChooseRole] unmounted');
-  }, []);
+  const handleRoleSelect = async (role: UserRole) => {
+    if (actionLoading) return;
+    setSelectedRole(role);
+    setIsOnboarding(true);
 
-  // Debug: key state changes
-  useEffect(() => {
-    console.log('[ChooseRole] state update', {
-      isLoading,
-      actionLoading,
-      selectedRole,
-      userUid: user?.uid ?? null,
-    });
-  }, [isLoading, actionLoading, selectedRole, user]);
+    try {
+  const response = await setRole({ role, uid: profile?.uid });
+      if (response.success && response.redirectUrl) {
+        if (!navigating) {
+          setNavigating(true);
+          router.push(response.redirectUrl);
+        }
+      } else if (response.success) {
+        const selectedOption = roleOptions.find(option => option.id === role);
+        if (selectedOption && !navigating) {
+          setNavigating(true);
+          router.push(selectedOption.redirect);
+        }
+      } else {
+        throw new Error(response.message || 'Failed to set role');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to set role. Please try again.');
+    } finally {
+      setIsOnboarding(false);
+    }
+  };
 
   if (isLoading) {
-    console.log('[ChooseRole] showing loading spinner');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="relative">
@@ -106,44 +113,6 @@ export default function ChooseRolePage() {
       </div>
     );
   }
-
-  const handleRoleSelect = async (role: UserRole) => {
-    console.log('[ChooseRole] role clicked', { role, actionLoading });
-    if (actionLoading || !user) return;
-
-    setSelectedRole(role);
-    console.log('[ChooseRole] selectedRole set', role);
-
-    setIsOnboarding(true);
-    try {
-  console.log('[ChooseRole] calling setRole API', { uid: user.uid, role });
-  const token = await user.getIdToken();
-  const response = await setRole(user.uid, { role }, token);
-
-  if (response.success && response.redirectUrl) {
-    console.log('[ChooseRole] setRole successful, navigating to', response.redirectUrl);
-    if (!navigating) {
-      setNavigating(true);
-      router.push(response.redirectUrl);
-    }
-  } else if (response.success) {
-    const selectedOption = roleOptions.find(option => option.id === role);
-    if (selectedOption && !navigating) {
-      console.log('[ChooseRole] fallback navigating to', selectedOption.redirect);
-      setNavigating(true);
-      router.push(selectedOption.redirect);
-    }
-  } else {
-    throw new Error(response.message || 'Failed to set role');
-  }
-} catch (err: any) {
-  console.error('[ChooseRole] setRole error', err);
-  setError(err.message || 'Failed to set role. Please try again.');
-} finally {
-  setIsOnboarding(false);
-}
-
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
