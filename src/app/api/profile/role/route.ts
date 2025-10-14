@@ -1,47 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
-import { adminDb, verifyBearerToken, FieldValue } from '@/lib/firebaseAdmin';
+import { adminDb, FieldValue } from '@/lib/firebaseAdmin';
 import type { DocumentData } from 'firebase-admin/firestore';
 
 // POST /api/profile/role
 // Body: { uid: string, role: 'individual-student' | 'institution-student' | 'institution-admin' | 'upskill-individual' }
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get('authorization') ?? undefined;
-    const decoded = await verifyBearerToken(authHeader);
-
     const body = await req.json();
     const { uid, role } = body || {};
+
     if (!uid || !role) {
-      return NextResponse.json({ success: false, message: 'uid and role are required' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: 'uid and role are required' },
+        { status: 400 }
+      );
     }
 
-    if (decoded.uid !== uid) {
-      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
-    }
-
+    // Update or create the user profile with the given role
     await adminDb
       .collection('profiles')
       .doc(uid)
       .set(
-        { role, updatedAt: FieldValue.serverTimestamp() } as DocumentData,
-        { merge: true },
+        {
+          role,
+          updatedAt: FieldValue.serverTimestamp(),
+        } as DocumentData,
+        { merge: true }
       );
 
-    // Simple redirect mapping
+    // Map each role to its redirect path
     const roleRedirectMap: Record<string, string> = {
       'individual-student': '/onboarding/student',
       'institution-student': '/onboarding/student',
       'institution-admin': '/onboarding/institution',
-      'upskill-individual': '/onboarding/upskill'
+      'upskill-individual': '/onboarding/upskill',
     };
 
     const redirectUrl = roleRedirectMap[role] || '/dashboard';
 
     return NextResponse.json({ success: true, redirectUrl });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    const status = message === 'Unauthorized' ? 401 : message === 'Forbidden' ? 403 : 500;
-    return NextResponse.json({ success: false, message }, { status });
+    const message =
+      error instanceof Error ? error.message : 'Internal server error';
+    console.error('[ProfileRoleRoute] Failed to update role:', message);
+    return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }
