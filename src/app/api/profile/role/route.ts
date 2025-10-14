@@ -17,13 +17,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get current profile to check if user is switching roles
+    const profileDoc = await adminDb.collection('profiles').doc(uid).get();
+    const currentProfile = profileDoc.data();
+    const isChangingRole = currentProfile?.role && currentProfile.role !== role;
+
     // Update or create the user profile with the given role
+    // If changing role, reset onboarded to false to require re-onboarding
     await adminDb
       .collection('profiles')
       .doc(uid)
       .set(
         {
           role,
+          ...(isChangingRole && { onboarded: false }),
           updatedAt: FieldValue.serverTimestamp(),
         } as DocumentData,
         { merge: true }
