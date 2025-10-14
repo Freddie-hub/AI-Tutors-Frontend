@@ -1,131 +1,30 @@
-// React hooks for Firebase authentication
-// Frontend handles authentication only; profile/institution data comes from backend API
+// React hooks for Firebase authentication and profile/institution data
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
-import { UserProfile, Institution } from './types';
-import { fetchProfile, fetchInstitution } from './api';
+import { useState, useEffect, useCallback } from 'react';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 
-// Hook for authentication state
+import { fetchProfile, fetchInstitution } from './api';
+import type { UserProfile, Institution } from './types';
+import { auth } from './firebase';
+
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(auth.currentUser);
+  const [loading, setLoading] = useState(!auth.currentUser);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  return { user, loading };
+  return { user, loading } as const;
 }
 
-// Hook for user profile data
-export function useUserProfile(uid?: string) {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!uid) {
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null);
-        const token = await auth.currentUser?.getIdToken();
-        if (!token) throw new Error('Not authenticated');
-        const data = await fetchProfile(uid, token);
-        if (!cancelled) setProfile(data);
-      } catch (e: any) {
-        if (!cancelled) {
-          const message = e?.message || 'Failed to load profile';
-          console.error('[useUserProfile] Failed to fetch profile', {
-            uid,
-            message,
-            error: e
-          });
-          setError(message);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    run();
-    return () => { cancelled = true; };
-  }, [uid]);
-
-  return { profile, loading, error };
-}
-
-// Hook for institution data
-export function useInstitution(institutionId?: string) {
-  const [institution, setInstitution] = useState<Institution | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!institutionId) {
-        setInstitution(null);
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        setError(null);
-        const token = await auth.currentUser?.getIdToken();
-        if (!token) throw new Error('Not authenticated');
-        const data = await fetchInstitution(institutionId, token);
-        if (!cancelled) setInstitution(data);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || 'Failed to load institution');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    run();
-    return () => { cancelled = true; };
-  }, [institutionId]);
-
-  return { institution, loading, error };
-}
-
-// Combined hook for authenticated user with profile
-export function useAuthUser() {
-  const { user, loading: authLoading } = useAuth();
-  const { profile, loading: profileLoading, error } = useUserProfile(user?.uid);
-  const { institution, loading: institutionLoading } = useInstitution(profile?.institutionId);
-
-  const loading = authLoading || profileLoading || institutionLoading;
-
-  // Profile creation now handled by backend upon first auth; no direct Firestore writes here
-
-  return {
-    user,
-    profile,
-    institution,
-    loading,
-    error,
-    isAuthenticated: !!user,
-    isIndependent: profile?.isIndependent ?? false,
-    isInstitutionLinked: !!(profile?.institutionId && institution)
-  };
-}
-
-// Hook for managing authentication actions
 export function useAuthActions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,8 +38,8 @@ export function useAuthActions() {
       const result = await action();
       return result;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(errorMessage);
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
       return null;
     } finally {
       setLoading(false);
@@ -150,40 +49,36 @@ export function useAuthActions() {
   return {
     loading,
     error,
-    // expose setter so callers can set a top-level API error message
     setError,
     clearError,
-    withErrorHandling
+    withErrorHandling,
   };
 }
 
-// Hook for form state management
 export function useFormState<T>(initialState: T) {
   const [values, setValues] = useState<T>(initialState);
-  // Allow a generic 'api' error slot in addition to field errors
   const [errors, setErrors] = useState<Partial<Record<keyof T | 'api', string>>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setSubmitting] = useState(false);
 
   const setValue = (field: keyof T, value: T[keyof T]) => {
-    setValues(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
+    setValues((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
-  const setError = (field: keyof T | 'api', error: string) => {
-    setErrors(prev => ({ ...prev, [field]: error }));
+  const setError = (field: keyof T | 'api', message: string) => {
+    setErrors((prev) => ({ ...prev, [field]: message }));
   };
 
   const clearErrors = () => setErrors({});
 
   const reset = () => {
     setValues(initialState);
-    clearErrors();
+    setErrors({});
   };
 
-  const hasErrors = Object.values(errors).some(error => !!error);
+  const hasErrors = Object.values(errors).some(Boolean);
 
   return {
     values,
@@ -194,6 +89,126 @@ export function useFormState<T>(initialState: T) {
     reset,
     hasErrors,
     isSubmitting,
-    setSubmitting: setIsSubmitting
+    setSubmitting,
   };
+}
+
+export function useAuthUser() {
+  const [user, setUser] = useState<User | null>(auth.currentUser);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [institution, setInstitution] = useState<Institution | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState<boolean>(!!auth.currentUser);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      setAuthReady(true);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const loadProfile = useCallback(
+    async (currentUser: User) => {
+      const token = await currentUser.getIdToken();
+      const fetchedProfile = await fetchProfile(currentUser.uid, token);
+      setProfile(fetchedProfile ?? null);
+
+      if (fetchedProfile?.institutionId) {
+        try {
+          const fetchedInstitution = await fetchInstitution(fetchedProfile.institutionId, token);
+          setInstitution(fetchedInstitution ?? null);
+        } catch (institutionError) {
+          console.error('[useAuthUser] Failed to load institution data', institutionError);
+          setInstitution(null);
+        }
+      } else {
+        setInstitution(null);
+      }
+    },
+    [],
+  );
+
+  const refreshProfile = useCallback(async () => {
+    if (!user) {
+      setProfile(null);
+      setInstitution(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await loadProfile(user);
+    } catch (err) {
+      console.error('[useAuthUser] Failed to refresh profile', err);
+      const message = err instanceof Error ? err.message : 'Failed to load profile';
+      setError(message);
+      setProfile(null);
+      setInstitution(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, loadProfile]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!authReady) {
+        return;
+      }
+
+      if (!user) {
+        if (!cancelled) {
+          setProfile(null);
+          setInstitution(null);
+          setError(null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        await loadProfile(user);
+      } catch (err) {
+        if (!cancelled) {
+          console.error('[useAuthUser] Failed to load profile', err);
+          const message = err instanceof Error ? err.message : 'Failed to load profile';
+          setError(message);
+          setProfile(null);
+          setInstitution(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, authReady, loadProfile]);
+
+  return {
+    user,
+    profile,
+    institution,
+    loading,
+    error,
+    refreshProfile,
+    isAuthenticated: !!user,
+    isIndependent: profile?.isIndependent ?? false,
+    isInstitutionLinked: Boolean(profile?.institutionId && institution),
+  } as const;
 }

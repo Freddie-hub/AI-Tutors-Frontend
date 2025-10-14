@@ -1,19 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { FcGoogle } from 'react-icons/fc';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/lib/auth';
-import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
-import { User } from 'firebase/auth';
-
-interface UserProfile {
-  role?: string;
-  onboarded?: boolean;
-  institutionId?: string;
-  isIndependent?: boolean;
-}
+import { useFormState } from '@/lib/hooks';
+import { loginWithEmail, signupWithEmail, loginWithGoogle } from '@/lib/api';
+import { useAuthPageRedirect } from '@/hooks/useRoleRedirect';
 
 interface LoginFormData {
   email: string;
@@ -27,74 +21,81 @@ interface SignupFormData {
   displayName: string;
 }
 
+declare global {
+  interface Window {
+    google: any; // Google Identity Services
+  }
+}
+
 export default function AuthPage() {
   const router = useRouter();
-  const { user, profile, loading: userLoading } = useAuthUser(); // No type argument needed
-  const { withErrorHandling, loading: actionLoading, error, clearError } = useAuthActions();
+  const { isLoading: redirectLoading } = useAuthPageRedirect();
+
   const [isSignup, setIsSignup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Form state
   const loginForm = useFormState<LoginFormData>({ email: '', password: '' });
   const signupForm = useFormState<SignupFormData>({
     email: '',
     password: '',
     confirmPassword: '',
-    displayName: ''
+    displayName: '',
   });
 
-  // Redirect logic
+  // Load Google Identity Services
   useEffect(() => {
-    if (userLoading || !user) return;
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
 
-    const { role, onboarded } = profile || {};
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
 
-    if (!role) {
-      router.replace('/onboarding/choose-role');
+  // Initialize Google Sign-In
+  useEffect(() => {
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+        callback: handleGoogleResponse,
+        auto_select: false,
+        context: isSignup ? 'signup' : 'signin',
+      });
+    }
+  }, [isSignup]);
+
+  // Handle Google Sign-In response
+  const handleGoogleResponse = async (response: { credential?: string; error?: any }) => {
+    if (response.error) {
+      setError('Google authentication failed');
+      setLoading(false);
       return;
     }
 
-    if (!onboarded) {
-      switch (role) {
-        case 'individual-student':
-        case 'institution-student':
-          router.replace('/onboarding/student');
-          break;
-        case 'institution-admin':
-          router.replace('/onboarding/institution');
-          break;
-        case 'upskill-individual':
-          router.replace('/onboarding/upskill');
-          break;
-        default:
-          router.replace('/onboarding/choose-role');
+    if (response.credential) {
+      try {
+        const res = await loginWithGoogle(response.credential);
+        if (!res.success) throw new Error(res.message || 'Google login failed');
+        router.push('/dashboard');
+      } catch (err: any) {
+        setError(err.message || 'Google login failed');
+      } finally {
+        setLoading(false);
       }
-      return;
     }
+  };
 
-    // Redirect onboarded users
-    switch (role) {
-      case 'individual-student':
-      case 'institution-student':
-        router.replace('/dashboard/student');
-        break;
-      case 'institution-admin':
-        router.replace('/dashboard/institution');
-        break;
-      case 'upskill-individual':
-        router.replace('/dashboard/student');
-        break;
-      default:
-        router.replace('/onboarding/choose-role');
-    }
-  }, [user, profile, userLoading, router]);
-
-  // Validation
+  // ===== Validation =====
   const validateEmail = (email: string): string | null => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) return 'Email is required';
-    if (!emailRegex.test(email)) return 'Please enter a valid email';
+    if (!emailRegex.test(email)) return 'Please enter a valid email address';
     return null;
   };
 
@@ -150,123 +151,118 @@ export default function AuthPage() {
     return isValid;
   };
 
-  // Auth handlers
-  const handleGoogleSignIn = async () => {
-    clearError();
-    const result = await withErrorHandling(async () => {
-      try {
-        return await authService.signInWithGoogle();
-      } catch (err: any) {
-        console.error('[AuthPage] Google sign-in error', err);
-        if (err.code === 'auth/invalid-credential' && profile?.role === 'institution-student') {
-          return 'Invalid credentials. Please check your institution-provided email and password.';
-        }
-        throw err;
-      }
-    });
+  // ===== Handlers =====
+  const handleGoogleSignIn = () => {
+    setError(null);
+    setLoading(true);
 
-    if (result) console.log('[AuthPage] Google sign-in successful');
+    if (!window.google) {
+      setError('Google Sign-In not loaded. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      window.google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          setError('Google Sign-In was blocked or cancelled. Please allow popups.');
+          setLoading(false);
+        }
+      });
+    } catch (err: any) {
+      setError('Failed to initiate Google Sign-In');
+      setLoading(false);
+    }
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearError();
-
+    setError(null);
     if (!validateLoginForm()) return;
 
-    const result = await withErrorHandling(async () => {
-      try {
-        return await authService.signInWithEmail(loginForm.values.email, loginForm.values.password);
-      } catch (err: any) {
-        console.error('[AuthPage] Email login error', err);
-        if (err.code === 'auth/invalid-credential' && profile?.role === 'institution-student') {
-          return 'Invalid credentials. Please check your institution-provided email and password.';
-        }
-        switch (err.code) {
-          case 'auth/user-not-found':
-            return 'No account found with this email';
-          case 'auth/wrong-password':
-            return 'Incorrect password';
-          case 'auth/too-many-requests':
-            return 'Too many attempts. Please try again later.';
-          default:
-            throw err;
-        }
-      }
-    });
-
-    if (result) console.log('[AuthPage] Email login successful');
+    setLoading(true);
+    try {
+      const res = await loginWithEmail(loginForm.values.email, loginForm.values.password);
+      if (!res.success) throw new Error(res.message || 'Login failed');
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearError();
-
+    setError(null);
     if (!validateSignupForm()) return;
 
-    const result = await withErrorHandling(async () => {
-      try {
-        const userCredential = await authService.createAccountWithEmail(signupForm.values.email, signupForm.values.password);
-        await authService.updateUserProfile({ displayName: signupForm.values.displayName });
-        return userCredential;
-      } catch (err: any) {
-        console.error('[AuthPage] Email signup error', err);
-        switch (err.code) {
-          case 'auth/email-already-in-use':
-            return 'This email is already registered';
-          case 'auth/invalid-email':
-            return 'Invalid email address';
-          case 'auth/weak-password':
-            return 'Password is too weak';
-          default:
-            throw err;
-        }
-      }
-    });
-
-    if (result) console.log('[AuthPage] Email signup successful');
+    setLoading(true);
+    try {
+      const res = await signupWithEmail(
+        signupForm.values.email,
+        signupForm.values.password,
+        signupForm.values.displayName
+      );
+      if (!res.success) throw new Error(res.message || 'Signup failed');
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Signup failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleAuthMode = () => {
     setIsSignup(!isSignup);
-    clearError();
+    setError(null);
     loginForm.reset();
     signupForm.reset();
   };
 
-  if (userLoading) {
+  const isProcessing = actionLoading || userLoading;
+
+  if (redirectLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
           <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
     );
   }
 
+  // ===== UI =====
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Learning.ai</h1>
           <p className="text-lg text-gray-600 mb-8">Learn anything, anytime, anywhere.</p>
-          <h2 className="text-2xl font-semibold text-gray-800">{isSignup ? 'Create your account' : 'Welcome back'}</h2>
-          <p className="mt-2 text-gray-600">{isSignup ? 'Start your learning journey today' : 'Sign in to continue your learning'}</p>
+          <h2 className="text-2xl font-semibold text-gray-800">
+            {isSignup ? 'Create your account' : 'Welcome back'}
+          </h2>
+          <p className="mt-2 text-gray-600">
+            {isSignup
+              ? 'Start your learning journey today'
+              : 'Sign in to continue your learning'}
+          </p>
         </div>
 
-        {/* Auth Card */}
+        {/* Card */}
         <div className="bg-white rounded-xl shadow-lg p-8">
+          {/* Google Auth */}
           <button
             onClick={handleGoogleSignIn}
-            disabled={actionLoading}
+            disabled={loading}
             className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FcGoogle className="h-5 w-5 mr-3" />
             {isSignup ? 'Sign up with Google' : 'Sign in with Google'}
           </button>
 
+          {/* Divider */}
           <div className="mt-6 mb-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -278,89 +274,151 @@ export default function AuthPage() {
             </div>
           </div>
 
-          {error && <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200"><p className="text-red-600 text-sm">{error}</p></div>}
+          {/* Error */}
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200">
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+          )}
 
+          {/* Form */}
           <form onSubmit={isSignup ? handleEmailSignup : handleEmailLogin} className="space-y-4">
-            {/* Display Name */}
+            {/* Display Name (Signup Only) */}
             {isSignup && (
               <div>
-                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
+                </label>
                 <input
                   id="displayName"
                   type="text"
                   value={signupForm.values.displayName}
                   onChange={(e) => signupForm.setValue('displayName', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${signupForm.errors.displayName ? 'border-red-300' : 'border-gray-300'}`}
+                  className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    signupForm.errors.displayName ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   placeholder="Enter your full name"
+                  disabled={isProcessing}
                 />
-                {signupForm.errors.displayName && <p className="mt-1 text-sm text-red-600">{signupForm.errors.displayName}</p>}
+                {signupForm.errors.displayName && (
+                  <p className="mt-1 text-sm text-red-600">{signupForm.errors.displayName}</p>
+                )}
               </div>
             )}
 
-            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
               <input
                 id="email"
                 type="email"
                 value={isSignup ? signupForm.values.email : loginForm.values.email}
-                onChange={(e) => isSignup ? signupForm.setValue('email', e.target.value) : loginForm.setValue('email', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${(isSignup ? signupForm.errors.email : loginForm.errors.email) ? 'border-red-300' : 'border-gray-300'}`}
+                onChange={(e) =>
+                  isSignup
+                    ? signupForm.setValue('email', e.target.value)
+                    : loginForm.setValue('email', e.target.value)
+                }
+                className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  (isSignup ? signupForm.errors.email : loginForm.errors.email)
+                    ? 'border-red-300'
+                    : 'border-gray-300'
+                }`}
                 placeholder="Enter your email"
+                disabled={isProcessing}
               />
               {(isSignup ? signupForm.errors.email : loginForm.errors.email) && (
-                <p className="mt-1 text-sm text-red-600">{isSignup ? signupForm.errors.email : loginForm.errors.email}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {isSignup ? signupForm.errors.email : loginForm.errors.email}
+                </p>
               )}
             </div>
 
-            {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
               <div className="relative">
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={isSignup ? signupForm.values.password : loginForm.values.password}
-                  onChange={(e) => isSignup ? signupForm.setValue('password', e.target.value) : loginForm.setValue('password', e.target.value)}
-                  className={`w-full px-3 py-2 pr-10 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${(isSignup ? signupForm.errors.password : loginForm.errors.password) ? 'border-red-300' : 'border-gray-300'}`}
+                  onChange={(e) =>
+                    isSignup
+                      ? signupForm.setValue('password', e.target.value)
+                      : loginForm.setValue('password', e.target.value)
+                  }
+                  className={`w-full px-3 py-2 pr-10 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    (isSignup ? signupForm.errors.password : loginForm.errors.password)
+                      ? 'border-red-300'
+                      : 'border-gray-300'
+                  }`}
                   placeholder="Enter your password"
+                  disabled={isProcessing}
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  {showPassword ? <AiOutlineEyeInvisible className="h-5 w-5 text-gray-400" /> : <AiOutlineEye className="h-5 w-5 text-gray-400" />}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword ? (
+                    <AiOutlineEyeInvisible className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <AiOutlineEye className="h-5 w-5 text-gray-400" />
+                  )}
                 </button>
               </div>
-              {(isSignup ? signupForm.errors.password : loginForm.errors.password) && <p className="mt-1 text-sm text-red-600">{isSignup ? signupForm.errors.password : loginForm.errors.password}</p>}
+              {(isSignup ? signupForm.errors.password : loginForm.errors.password) && (
+                <p className="mt-1 text-sm text-red-600">
+                  {isSignup ? signupForm.errors.password : loginForm.errors.password}
+                </p>
+              )}
             </div>
 
-            {/* Confirm Password */}
             {isSignup && (
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm Password
+                </label>
                 <div className="relative">
                   <input
                     id="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={signupForm.values.confirmPassword}
                     onChange={(e) => signupForm.setValue('confirmPassword', e.target.value)}
-                    className={`w-full px-3 py-2 pr-10 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${signupForm.errors.confirmPassword ? 'border-red-300' : 'border-gray-300'}`}
+                    className={`w-full px-3 py-2 pr-10 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      signupForm.errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                    }`}
                     placeholder="Confirm your password"
+                    disabled={isProcessing}
                   />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    {showConfirmPassword ? <AiOutlineEyeInvisible className="h-5 w-5 text-gray-400" /> : <AiOutlineEye className="h-5 w-5 text-gray-400" />}
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showConfirmPassword ? (
+                      <AiOutlineEyeInvisible className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <AiOutlineEye className="h-5 w-5 text-gray-400" />
+                    )}
                   </button>
                 </div>
-                {signupForm.errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{signupForm.errors.confirmPassword}</p>}
+                {signupForm.errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{signupForm.errors.confirmPassword}</p>
+                )}
               </div>
             )}
 
+            {/* Submit */}
             <button
               type="submit"
-              disabled={actionLoading}
+              disabled={loading}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
-              {actionLoading ? (
+              {loading ? (
                 <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                   {isSignup ? 'Creating Account...' : 'Signing In...'}
                 </div>
               ) : (
@@ -369,10 +427,14 @@ export default function AuthPage() {
             </button>
           </form>
 
+          {/* Toggle Auth Mode */}
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
-              <button onClick={toggleAuthMode} className="text-blue-600 hover:text-blue-500 font-medium focus:outline-none focus:underline">
+              <button
+                onClick={toggleAuthMode}
+                className="text-blue-600 hover:text-blue-500 font-medium focus:outline-none focus:underline"
+              >
                 {isSignup ? 'Sign in' : 'Sign up'}
               </button>
             </p>
@@ -381,8 +443,10 @@ export default function AuthPage() {
           {!isSignup && (
             <div className="mt-4 text-center">
               <button
-                onClick={() => console.log('[AuthPage] Forgot password clicked')}
+                onClick={handleForgotPassword}
                 className="text-sm text-blue-600 hover:text-blue-500 focus:outline-none focus:underline"
+                type="button"
+                disabled={isProcessing}
               >
                 Forgot your password?
               </button>
@@ -390,11 +454,16 @@ export default function AuthPage() {
           )}
         </div>
 
+        {/* Footer */}
         <div className="text-center text-sm text-gray-500">
           By continuing, you agree to Learning.ai's{' '}
-          <a href="/terms" className="text-blue-600 hover:text-blue-500 underline">Terms of Service</a>{' '}
+          <a href="/terms" className="text-blue-600 hover:text-blue-500 underline">
+            Terms of Service
+          </a>{' '}
           and{' '}
-          <a href="/privacy" className="text-blue-600 hover:text-blue-500 underline">Privacy Policy</a>
+          <a href="/privacy" className="text-blue-600 hover:text-blue-500 underline">
+            Privacy Policy
+          </a>
         </div>
       </div>
     </div>

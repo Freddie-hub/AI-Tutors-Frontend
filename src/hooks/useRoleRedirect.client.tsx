@@ -17,54 +17,35 @@ interface RoleRedirectResult {
   redirecting: boolean;
 }
 
-// Define route mappings for each role (dashboard destinations)
 const ROLE_ROUTES = {
   'individual-student': '/dashboard/student',
   'institution-student': '/dashboard/student',
   'institution-admin': '/dashboard/institution',
   'upskill-individual': '/dashboard/student',
-  // Optional future role
-  'corporate-user': '/dashboard/corporate'
+  'corporate-user': '/dashboard/corporate',
 } as const;
 
-// Define public routes that don't require authentication
-// Note: onboarding routes are protected; only marketing/legal pages and auth are public.
-const PUBLIC_ROUTES = [
-  '/',
-  '/auth',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms'
-];
+const PUBLIC_ROUTES = ['/', '/auth', '/about', '/contact', '/privacy', '/terms'];
 
-// Define onboarding routes
 const ONBOARDING_ROUTES = [
   '/onboarding/choose-role',
   '/onboarding/student',
   '/onboarding/institution',
-  '/onboarding/upskill'
+  '/onboarding/upskill',
 ];
 
-// Map of role to the specific onboarding route they must use
 const ROLE_ONBOARDING_ROUTE: Record<string, string> = {
   'individual-student': '/onboarding/student',
   'institution-student': '/onboarding/student',
   'institution-admin': '/onboarding/institution',
-  'upskill-individual': '/onboarding/upskill'
+  'upskill-individual': '/onboarding/upskill',
 };
 
-/**
- * Custom hook for role-based routing and access control
- * 
- * @param options Configuration options for the redirect behavior
- * @returns Object containing loading state, authorization status, and current role
- */
 export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirectResult {
   const {
     allowedRoles = [],
     requireOnboarded = true,
-    redirectIfAuthenticated = false
+    redirectIfAuthenticated = false,
   } = options;
 
   const router = useRouter();
@@ -72,8 +53,6 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
   const { user, profile, loading: authLoading, error: profileError } = useAuthUser();
   const [redirecting, setRedirecting] = useState(false);
 
-  // Do NOT block routing on profile fetch errors (e.g., profile not created yet or offline).
-  // We want users to still reach onboarding/choose-role even if profile isn't available.
   const hasProfileError = !!profileError;
   const isLoading = authLoading || redirecting;
   const currentRole = profile?.role || null;
@@ -82,30 +61,34 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
   const isOnboardingRoute = ONBOARDING_ROUTES.includes(pathname);
 
-  // Determine if user is authorized for current route
   const isAuthorized = useMemo(() => {
     if (isPublicRoute) return true;
     if (!isAuthenticated) return false;
     if (requireOnboarded && !isOnboarded) return isOnboardingRoute;
     if (allowedRoles.length > 0 && currentRole && !allowedRoles.includes(currentRole)) return false;
     return true;
-  }, [isPublicRoute, isAuthenticated, isOnboarded, isOnboardingRoute, allowedRoles, currentRole, requireOnboarded]);
+  }, [
+    isPublicRoute,
+    isAuthenticated,
+    isOnboarded,
+    isOnboardingRoute,
+    allowedRoles,
+    currentRole,
+    requireOnboarded,
+  ]);
 
   useEffect(() => {
-  // Don't redirect while still loading auth state. Allow redirects even if profile fetch errored.
-  if (authLoading) return;
+    if (authLoading) return;
 
     const performRedirect = (path: string, reason?: string) => {
       if (pathname !== path) {
         setRedirecting(true);
         console.log(`Redirecting to ${path}${reason ? ` - ${reason}` : ''}`);
         router.replace(path);
-        // Reset redirecting state after a delay to prevent flicker
         setTimeout(() => setRedirecting(false), 1000);
       }
     };
 
-    // Handle unauthenticated users
     if (!isAuthenticated) {
       if (!isPublicRoute) {
         performRedirect('/auth', 'User not authenticated');
@@ -113,19 +96,17 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       return;
     }
 
-    // Handle authenticated users on auth page
     if (redirectIfAuthenticated && pathname === '/auth' && isAuthenticated) {
       if (!profile) {
         performRedirect('/onboarding/choose-role', 'No user profile found');
         return;
       }
-      
+
       if (!isOnboarded) {
         performRedirect('/onboarding/choose-role', 'User not onboarded');
         return;
       }
 
-      // Redirect to appropriate dashboard based on role
       const dashboardRoute = ROLE_ROUTES[currentRole as keyof typeof ROLE_ROUTES];
       if (dashboardRoute) {
         performRedirect(dashboardRoute, `Redirecting ${currentRole} to dashboard`);
@@ -135,7 +116,6 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       return;
     }
 
-    // Enforce that role must be chosen before accessing other onboarding routes
     if (isAuthenticated && (!profile || !currentRole)) {
       if (pathname !== '/onboarding/choose-role') {
         performRedirect('/onboarding/choose-role', 'Role not selected yet');
@@ -143,7 +123,6 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       return;
     }
 
-    // Handle users who haven't completed onboarding: only allow role-specific onboarding route
     if (isAuthenticated && profile && currentRole && !isOnboarded) {
       const expectedOnboarding = ROLE_ONBOARDING_ROUTE[currentRole];
       if (isOnboardingRoute && pathname !== expectedOnboarding) {
@@ -156,10 +135,8 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       }
     }
 
-    // Handle role-based access control
     if (isAuthenticated && profile && isOnboarded && allowedRoles.length > 0) {
       if (currentRole && !allowedRoles.includes(currentRole)) {
-        // Redirect to user's appropriate dashboard
         const dashboardRoute = ROLE_ROUTES[currentRole as keyof typeof ROLE_ROUTES];
         if (dashboardRoute) {
           performRedirect(dashboardRoute, `Role ${currentRole} not authorized for this route`);
@@ -170,7 +147,6 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       }
     }
 
-    // Handle completed onboarding users on onboarding routes
     if (isAuthenticated && profile && isOnboarded && isOnboardingRoute) {
       const dashboardRoute = ROLE_ROUTES[currentRole as keyof typeof ROLE_ROUTES];
       if (dashboardRoute) {
@@ -178,7 +154,6 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       }
       return;
     }
-
   }, [
     authLoading,
     isAuthenticated,
@@ -191,54 +166,40 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
     redirectIfAuthenticated,
     isPublicRoute,
     isOnboardingRoute,
-    router
+    router,
+    hasProfileError,
   ]);
 
   return {
     isLoading,
     isAuthorized,
     currentRole,
-    redirecting
+    redirecting,
   };
 }
 
-/**
- * Hook specifically for protecting dashboard routes
- * Automatically redirects unauthorized users
- */
 export function useDashboardProtection(allowedRoles: string[]) {
   return useRoleRedirect({
     allowedRoles,
-    requireOnboarded: true
+    requireOnboarded: true,
   });
 }
 
-/**
- * Hook for protecting onboarding routes
- * Allows authenticated users who haven't completed onboarding
- */
 export function useOnboardingProtection() {
   return useRoleRedirect({
-    requireOnboarded: false
+    requireOnboarded: false,
   });
 }
 
-/**
- * Hook for auth page behavior
- * Redirects authenticated users to appropriate dashboard
- */
 export function useAuthPageRedirect() {
   return useRoleRedirect({
-    redirectIfAuthenticated: true
+    redirectIfAuthenticated: true,
   });
 }
 
-/**
- * Higher-order component for route protection
- */
 export function withRoleProtection<P extends object>(
   Component: React.ComponentType<P>,
-  options: RoleRedirectOptions = {}
+  options: RoleRedirectOptions = {},
 ) {
   return function ProtectedComponent(props: P) {
     const { isLoading, isAuthorized } = useRoleRedirect(options);
@@ -247,8 +208,8 @@ export function withRoleProtection<P extends object>(
       return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
           <div className="relative">
-            <div className="animate-spin rounded-full h-12 w-12 border-2 border-transparent bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-border"></div>
-            <div className="absolute inset-0 rounded-full border-2 border-slate-700"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-2 border-transparent bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-border" />
+            <div className="absolute inset-0 rounded-full border-2 border-slate-700" />
           </div>
         </div>
       );
@@ -270,17 +231,14 @@ export function withRoleProtection<P extends object>(
   };
 }
 
-// Helper function to get dashboard route for a role
 export function getDashboardRoute(role: string): string {
   return ROLE_ROUTES[role as keyof typeof ROLE_ROUTES] || '/onboarding/choose-role';
 }
 
-// Helper function to check if a route is public
 export function isPublicRoute(path: string): boolean {
   return PUBLIC_ROUTES.includes(path);
 }
 
-// Helper function to check if a route is an onboarding route
 export function isOnboardingRoute(path: string): boolean {
   return ONBOARDING_ROUTES.includes(path);
 }

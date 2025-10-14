@@ -44,7 +44,7 @@ const experienceLevels = [
 
 export default function UpskillOnboardingPage() {
   const router = useRouter();
-  const { user, loading } = useAuthUser();
+  const { profile, loading } = useAuthUser();
   const { setError, loading: actionLoading } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
   const { isLoading: guardLoading } = useOnboardingProtection();
@@ -127,8 +127,7 @@ export default function UpskillOnboardingPage() {
       };
 
       console.log('[UpskillOnboarding] calling onboardUpskillIndividual API', { payload });
-      const token = await user.getIdToken();
-      const response = await onboardUpskillIndividual(user.uid, payload, token);
+  const response = await onboardUpskillIndividual(payload, profile.uid);
 
       if (response.success && response.redirectUrl) {
         console.log('[UpskillOnboarding] API call successful, navigating to', response.redirectUrl);

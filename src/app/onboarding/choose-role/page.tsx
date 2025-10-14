@@ -49,39 +49,64 @@ export default function ChooseRolePage() {
   const router = useRouter();
   const { user, profile, loading: authLoading, error: profileError } = useAuthUser();
   const { isLoading: guardLoading } = useOnboardingProtection();
+  const { profile, loading: authLoading } = useAuthUser();
   const { loading: actionLoading, setError } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
-  const isLoading = authLoading || guardLoading;
-
-  // Debug: component lifecycle
-  useEffect(() => {
-    console.log('[ChooseRole] mounted');
-    return () => console.log('[ChooseRole] unmounted');
-  }, []);
-
-  // Debug: key state changes
-  useEffect(() => {
-    console.log('[ChooseRole] state update', {
-      isLoading,
-      actionLoading,
-      selectedRole,
-      userUid: user?.uid ?? null,
-      profileLoaded: !!profile,
-      profileError,
-    });
-  }, [isLoading, actionLoading, selectedRole, user, profile, profileError]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [navigating, setNavigating] = useState(false);
 
   useEffect(() => {
-    if (profileError) {
-      console.error('[ChooseRole] profile fetch error', profileError);
-      setError(profileError);
+    if (authLoading) return;
+
+    if (!profile) {
+      if (!navigating) {
+        setNavigating(true);
+        router.push('/auth');
+      }
+      return;
+    }
+
+    if (profile?.role === 'institution-student' && !profile?.onboarded) {
+      if (!navigating) {
+        setNavigating(true);
+        router.push('/onboarding/student');
+      }
+      return;
+    }
+
+    setIsLoading(false);
+  }, [profile, router, navigating, authLoading]);
+
+  const handleRoleSelect = async (role: UserRole) => {
+    if (actionLoading) return;
+    setSelectedRole(role);
+    setIsOnboarding(true);
+
+    try {
+  const response = await setRole({ role, uid: profile?.uid });
+      if (response.success && response.redirectUrl) {
+        if (!navigating) {
+          setNavigating(true);
+          router.push(response.redirectUrl);
+        }
+      } else if (response.success) {
+        const selectedOption = roleOptions.find(option => option.id === role);
+        if (selectedOption && !navigating) {
+          setNavigating(true);
+          router.push(selectedOption.redirect);
+        }
+      } else {
+        throw new Error(response.message || 'Failed to set role');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to set role. Please try again.');
+    } finally {
       setIsOnboarding(false);
     }
-  }, [profileError, setError, setIsOnboarding]);
+  };
 
   if (isLoading) {
-    console.log('[ChooseRole] showing loading spinner');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="relative">

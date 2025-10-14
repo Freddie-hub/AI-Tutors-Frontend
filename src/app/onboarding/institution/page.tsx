@@ -84,7 +84,7 @@ const benefits = [
 
 export default function InstitutionOnboardingPage() {
   const router = useRouter();
-  const { user, loading } = useAuthUser();
+  const { profile, loading } = useAuthUser();
   const { setError, loading: actionLoading } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
   const { isLoading: guardLoading } = useOnboardingProtection();
@@ -115,6 +115,10 @@ export default function InstitutionOnboardingPage() {
   }, [loading, user, router]);
 
   if (!user) return null;
+  if (!profile) {
+    router.push('/auth');
+    return null;
+  }
 
   const validateForm = (): boolean => {
     form.clearErrors();
@@ -156,12 +160,10 @@ export default function InstitutionOnboardingPage() {
         type: form.values.type as InstitutionType,
         region: form.values.region,
         numberOfStudents: form.values.numberOfStudents ? Number(form.values.numberOfStudents) : undefined,
-        admin_uid: user.uid
       };
 
       console.log('[InstitutionOnboarding] calling createInstitution API', { payload });
-      const token = await user.getIdToken();
-      const response = await createInstitution(payload, token);
+      const response = await createInstitution(payload);
 
       if (response.success && response.redirectUrl) {
         console.log('[InstitutionOnboarding] API call successful, navigating to', response.redirectUrl);

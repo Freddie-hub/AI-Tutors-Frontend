@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useRef, useContext, useEffect } from 'react';
+import { useState, useRef, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
-import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
 import { OnboardingContext } from '@/lib/context/OnboardingContext';
 import { onboardIndividualStudent, onboardInstitutionStudent } from '@/lib/api';
 
@@ -56,10 +55,9 @@ const learningGoalOptions = [
 
 export default function StudentOnboardingPage() {
   const router = useRouter();
-  const { user, profile, institution, loading } = useAuthUser();
+  const { profile, institution, loading } = useAuthUser();
   const { setError } = useAuthActions();
   const { setIsOnboarding } = useContext(OnboardingContext);
-  const { isLoading: guardLoading } = useOnboardingProtection();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSlow, setIsSlow] = useState(false);
   const slowTimerRef = useRef<number | null>(null);
@@ -76,7 +74,7 @@ export default function StudentOnboardingPage() {
     linked_institution: institution?.name || ''
   });
 
-  if (loading || guardLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="relative">
@@ -87,14 +85,10 @@ export default function StudentOnboardingPage() {
     );
   }
 
-  // Redirect unauthenticated users efficiently (only in an effect)
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/auth');
-    }
-  }, [loading, user, router]);
-
-  if (!user) return null;
+  if (!profile) {
+    router.push('/auth');
+    return null;
+  }
 
   const validateStep = (step: number): boolean => {
     form.clearErrors();
@@ -161,8 +155,7 @@ export default function StudentOnboardingPage() {
     }, 7000);
 
     try {
-      console.log('[StudentOnboarding] preparing API call', { uid: user.uid, values: form.values });
-      const token = await user.getIdToken();
+  console.log('[StudentOnboarding] preparing API call', { values: form.values });
       let response;
 
       if (isInstitutionStudent) {
@@ -172,7 +165,7 @@ export default function StudentOnboardingPage() {
           grade: form.values.grade,
           goal: form.values.goal
         };
-        response = await onboardInstitutionStudent(user.uid, payload, token);
+  response = await onboardInstitutionStudent(payload, profile.uid);
       } else {
         const payload = {
           name: form.values.name,
@@ -182,7 +175,7 @@ export default function StudentOnboardingPage() {
           goal: form.values.goal,
           preferredMode: form.values.preferredMode as 'AI Autopilot'
         };
-        response = await onboardIndividualStudent(user.uid, payload, token);
+  response = await onboardIndividualStudent(payload, profile.uid);
       }
 
       if (response.success && response.redirectUrl) {

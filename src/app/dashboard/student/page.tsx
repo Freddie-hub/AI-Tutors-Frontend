@@ -1,16 +1,16 @@
 'use client';
 
 import { useAuthUser } from '@/lib/hooks';
-import { authService } from '@/lib/auth';
+import { logout } from '@/lib/api';
 import { useDashboardProtection } from '@/hooks/useRoleRedirect';
 
 export default function StudentDashboard() {
   const { isLoading } = useDashboardProtection(['individual-student']);
-  const { user, profile } = useAuthUser();
+  const { profile } = useAuthUser();
 
   const handleSignOut = async () => {
     try {
-      await authService.signOut();
+      await logout();
     } catch (error) {
       console.error('Sign out error:', error);
     }
@@ -32,7 +32,7 @@ export default function StudentDashboard() {
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-600">Welcome, {profile?.displayName || user?.email}</span>
+              <span className="text-gray-600">Welcome, {profile?.displayName || profile?.email}</span>
               <button
                 onClick={handleSignOut}
                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
