@@ -7,7 +7,7 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 
 import { fetchProfile, fetchInstitution } from './api';
 import type { UserProfile, Institution } from './types';
-import { auth } from './firebase';
+import { auth } from '@/lib/firebase';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(auth.currentUser);
