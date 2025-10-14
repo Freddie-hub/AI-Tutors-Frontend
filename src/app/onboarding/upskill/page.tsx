@@ -1,20 +1,22 @@
+
 'use client';
 
-import { useState, useContext, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
-import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
-import { OnboardingContext } from '@/lib/context/OnboardingContext';
-import { onboardUpskillIndividual } from '../../../lib/api';
 
-interface UpskillProfile {
+import { onboardUpskillIndividual } from '@/lib/api';
+import { useAuthActions, useAuthUser, useFormState } from '@/lib/hooks';
+import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
+import { useOnboarding } from '@/lib/context/OnboardingContext';
+
+interface UpskillFormValues {
   name: string;
   goal: string;
   preferredSkills: string[];
   experienceLevel: 'beginner' | 'intermediate' | 'advanced' | '';
 }
 
-const learningGoalOptions = [
+const LEARNING_GOALS = [
   'Advance my career with new skills',
   'Switch to a new industry or role',
   'Enhance my current job performance',
@@ -22,10 +24,10 @@ const learningGoalOptions = [
   'Prepare for certifications or exams',
   'Explore new technologies or tools',
   'Improve leadership and management skills',
-  'Build a foundation in a new field'
+  'Build a foundation in a new field',
 ];
 
-const skillOptions = [
+const SKILL_OPTIONS = [
   'Programming',
   'Data Analysis',
   'Graphic Design',
@@ -33,117 +35,106 @@ const skillOptions = [
   'Web Development',
   'Machine Learning',
   'Digital Marketing',
-  'Cybersecurity'
+  'Cybersecurity',
 ];
 
-const experienceLevels = [
-  { value: 'beginner' as const, label: 'Beginner', description: 'New to the field, starting from scratch' },
-  { value: 'intermediate' as const, label: 'Intermediate', description: 'Some experience, looking to deepen skills' },
-  { value: 'advanced' as const, label: 'Advanced', description: 'Experienced, seeking to master advanced concepts' }
+const EXPERIENCE_LEVELS = [
+  { value: 'beginner' as const, label: 'Beginner', description: 'New to the field, starting from scratch.' },
+  { value: 'intermediate' as const, label: 'Intermediate', description: 'Some experience, ready to deepen skills.' },
+  { value: 'advanced' as const, label: 'Advanced', description: 'Experienced and seeking mastery.' },
 ];
 
 export default function UpskillOnboardingPage() {
   const router = useRouter();
-  const { profile, loading } = useAuthUser();
-  const { setError, loading: actionLoading } = useAuthActions();
-  const { setIsOnboarding } = useContext(OnboardingContext);
+  const { user, profile, loading: authLoading } = useAuthUser();
   const { isLoading: guardLoading } = useOnboardingProtection();
+  const { loading: actionLoading, setError } = useAuthActions();
+  const { setIsLoading } = useOnboarding();
 
-  const form = useFormState<UpskillProfile>({
+  const form = useFormState<UpskillFormValues>({
     name: '',
     goal: '',
     preferredSkills: [],
-    experienceLevel: ''
+    experienceLevel: '',
   });
 
-  if (loading || guardLoading) {
+  useEffect(() => {
+    if (!authLoading && !guardLoading && !user) {
+      router.replace('/auth');
+    }
+  }, [authLoading, guardLoading, user, router]);
+
+  if (authLoading || guardLoading || !user || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="relative">
-          <div className="animate-spin rounded-full h-12 w-12 border-2 border-transparent bg-gradient-to-r from-indigo-500 to-blue-500 bg-clip-border"></div>
-          <div className="absolute inset-0 rounded-full border-2 border-slate-700"></div>
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-transparent bg-gradient-to-r from-indigo-500 to-blue-500 bg-clip-border" />
+          <div className="absolute inset-0 rounded-full border-2 border-slate-700" />
         </div>
       </div>
     );
   }
 
-  // Redirect unauthenticated users efficiently (only in an effect)
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/auth');
+  const handleSkillToggle = (skill: string) => {
+    const selected = form.values.preferredSkills;
+    if (selected.includes(skill)) {
+      form.setValue('preferredSkills', selected.filter((value) => value !== skill));
+      return;
     }
-  }, [loading, user, router]);
 
-  if (!user) return null;
+    form.setValue('preferredSkills', [...selected, skill]);
+  };
 
-  const validateForm = (): boolean => {
+  const validate = () => {
     form.clearErrors();
-    let isValid = true;
+    let valid = true;
 
     if (!form.values.name.trim()) {
       form.setError('name', 'Name is required');
-      isValid = false;
+      valid = false;
     }
-
     if (!form.values.goal) {
-      form.setError('goal', 'Please select your learning goal');
-      isValid = false;
+      form.setError('goal', 'Select your learning goal');
+      valid = false;
     }
-
     if (form.values.preferredSkills.length === 0) {
-      form.setError('preferredSkills', 'Please select at least one skill');
-      isValid = false;
+      form.setError('preferredSkills', 'Pick at least one skill');
+      valid = false;
     }
-
     if (!form.values.experienceLevel) {
-      form.setError('experienceLevel', 'Please select your experience level');
-      isValid = false;
+      form.setError('experienceLevel', 'Select your experience level');
+      valid = false;
     }
 
-    return isValid;
+    return valid;
   };
 
-  const handleSkillToggle = (skill: string) => {
-    const currentSkills = form.values.preferredSkills;
-    if (currentSkills.includes(skill)) {
-      form.setValue('preferredSkills', currentSkills.filter(s => s !== skill));
-    } else {
-      form.setValue('preferredSkills', [...currentSkills, skill]);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!validate()) {
+      return;
     }
-  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    setIsOnboarding(true);
+    setIsLoading(true);
     try {
-      const payload = {
+      const response = await onboardUpskillIndividual(user.uid, {
         name: form.values.name.trim(),
         goal: form.values.goal,
         preferredSkills: form.values.preferredSkills,
-        experienceLevel: form.values.experienceLevel as 'beginner' | 'intermediate' | 'advanced'
-      };
+        experienceLevel: form.values.experienceLevel as 'beginner' | 'intermediate' | 'advanced',
+      });
 
-      console.log('[UpskillOnboarding] calling onboardUpskillIndividual API', { payload });
-  const response = await onboardUpskillIndividual(payload, profile.uid);
+      if (!response.success) {
+        throw new Error(response.message ?? 'Failed to complete onboarding');
+      }
 
-      if (response.success && response.redirectUrl) {
-        console.log('[UpskillOnboarding] API call successful, navigating to', response.redirectUrl);
-        router.push(response.redirectUrl);
-      } else {
-        throw new Error(response.message || 'Failed to complete onboarding');
-      }
-    } catch (err: any) {
-      console.error('[UpskillOnboarding] API call error', err);
-      if (err.field && err.message) {
-        form.setError(err.field as keyof UpskillProfile, err.message);
-      } else {
-        form.setError('api', err.message || 'Failed to complete onboarding. Please try again.');
-      }
+      router.replace(response.redirectUrl ?? '/dashboard/student');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to complete onboarding. Please try again.';
+      setError(message);
+      form.setError('api', message);
     } finally {
-      setIsOnboarding(false);
+      setIsLoading(false);
     }
   };
 
@@ -163,7 +154,7 @@ export default function UpskillOnboardingPage() {
             Upskill Setup
           </h1>
           <p className="text-xl text-slate-300 leading-relaxed">
-            Let's tailor your AI-powered learning experience to boost your professional or personal growth.
+            Let’s tailor your AI-powered learning experience to boost your professional or personal growth.
           </p>
         </div>
 
@@ -195,10 +186,10 @@ export default function UpskillOnboardingPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-200 mb-3">
-                What's your main learning goal? <span className="text-red-400">*</span>
+                What’s your main learning goal? <span className="text-red-400">*</span>
               </label>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {learningGoalOptions.map((goal) => (
+                {LEARNING_GOALS.map((goal) => (
                   <div
                     key={goal}
                     onClick={() => form.setValue('goal', goal)}
@@ -229,7 +220,7 @@ export default function UpskillOnboardingPage() {
                 Which skills do you want to learn? <span className="text-red-400">*</span>
               </label>
               <div className="space-y-2">
-                {skillOptions.map((skill) => (
+                {SKILL_OPTIONS.map((skill) => (
                   <div
                     key={skill}
                     onClick={() => handleSkillToggle(skill)}
@@ -257,10 +248,10 @@ export default function UpskillOnboardingPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-200 mb-3">
-                What's your experience level? <span className="text-red-400">*</span>
+                What’s your experience level? <span className="text-red-400">*</span>
               </label>
               <div className="space-y-3">
-                {experienceLevels.map((option) => (
+                {EXPERIENCE_LEVELS.map((option) => (
                   <div
                     key={option.value}
                     onClick={() => form.setValue('experienceLevel', option.value)}

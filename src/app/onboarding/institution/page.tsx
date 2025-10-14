@@ -1,385 +1,298 @@
 'use client';
 
-import { useState, useContext, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
-import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
-import { OnboardingContext } from '@/lib/context/OnboardingContext';
+
 import { createInstitution } from '@/lib/api';
+import { useAuthActions, useAuthUser, useFormState } from '@/lib/hooks';
+import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
+import { useOnboarding } from '@/lib/context/OnboardingContext';
+import type { InstitutionAdminOnboardingData } from '@/lib/types';
 
-type InstitutionType = 'university' | 'school' | 'college' | 'training_center' | 'ngo';
-
-interface InstitutionFormData {
+type InstitutionFormValues = {
   name: string;
-  type: InstitutionType | '';
+  type: InstitutionAdminOnboardingData['type'] | '';
   region: string;
   numberOfStudents: string;
-}
+};
 
-const institutionTypes = [
-  { 
-    value: 'university' as InstitutionType, 
-    label: 'University', 
-    description: 'Higher education institutions offering degree programs'
-  },
-  { 
-    value: 'school' as InstitutionType, 
-    label: 'School', 
-    description: 'Primary and secondary schools'
-  },
-  { 
-    value: 'college' as InstitutionType, 
-    label: 'College', 
-    description: 'Colleges offering diploma and certificate programs'
-  },
-  { 
-    value: 'training_center' as InstitutionType, 
-    label: 'Training Center', 
-    description: 'Vocational and technical training centers'
-  },
-  { 
-    value: 'ngo' as InstitutionType, 
-    label: 'NGO', 
-    description: 'Non-governmental organizations focused on education and training'
-  }
+const INSTITUTION_TYPES: { value: InstitutionAdminOnboardingData['type']; label: string; description: string }[] = [
+  { value: 'university', label: 'University', description: 'Higher education institutions offering degree programmes.' },
+  { value: 'school', label: 'School', description: 'Primary and secondary schools.' },
+  { value: 'college', label: 'College', description: 'Diploma and certificate awarding colleges.' },
+  { value: 'training_center', label: 'Training Centre', description: 'Vocational and technical training centres.' },
+  { value: 'ngo', label: 'NGO', description: 'Non-governmental organisations focused on education and training.' },
 ];
 
-const kenyanRegions = [
-  'Nairobi', 'Central', 'Coast', 'Eastern', 'North Eastern', 
-  'Nyanza', 'Rift Valley', 'Western'
-];
+const KENYAN_REGIONS = ['Nairobi', 'Central', 'Coast', 'Eastern', 'North Eastern', 'Nyanza', 'Rift Valley', 'Western'];
 
-const benefits = [
-  {
-    icon: 'users',
-    title: 'Manage Students',
-    description: 'Easily enroll students, track their progress, and manage class assignments with our intuitive dashboard.'
-  },
-  {
-    icon: 'chart-line',
-    title: 'Track Progress',
-    description: 'Get detailed analytics on student performance, learning patterns, and areas that need attention.'
-  },
-  {
-    icon: 'book-open',
-    title: 'Generate Lessons',
-    description: 'Create AI-powered lessons tailored to your curriculum and student needs in minutes, not hours.'
-  },
-  {
-    icon: 'robot',
-    title: 'AI Teaching Assistant',
-    description: 'Deploy virtual tutors that provide 24/7 support to your students across all subjects.'
-  },
-  {
-    icon: 'analytics',
-    title: 'Performance Analytics',
-    description: 'Monitor institutional performance with comprehensive reports and insights for better decision making.'
-  },
-  {
-    icon: 'globe',
-    title: 'Curriculum Alignment',
-    description: 'Seamlessly align with CBC, British, or create adaptive learning paths for diverse student needs.'
-  }
+const BENEFITS = [
+  { icon: '👥', title: 'Manage students', description: 'Enrol learners, track progress, and manage classes from one dashboard.' },
+  { icon: '📊', title: 'Actionable analytics', description: 'Spot learning gaps early with real-time performance insights.' },
+  { icon: '📚', title: 'Generate lessons', description: 'Create AI-powered lessons aligned to your curriculum in minutes.' },
+  { icon: '🤖', title: 'AI teaching assistant', description: 'Deploy 24/7 virtual tutors that support your students in every subject.' },
+  { icon: '🌍', title: 'Curriculum alignment', description: 'Support CBC, British, or create adaptive learning paths for diverse needs.' },
+  { icon: '🛠️', title: 'Reduce admin overhead', description: 'Automate reporting, parent updates, and compliance paperwork.' },
 ];
 
 export default function InstitutionOnboardingPage() {
   const router = useRouter();
-  const { profile, loading } = useAuthUser();
-  const { setError, loading: actionLoading } = useAuthActions();
-  const { setIsOnboarding } = useContext(OnboardingContext);
+  const { user, profile, loading: authLoading } = useAuthUser();
   const { isLoading: guardLoading } = useOnboardingProtection();
-  
-  const form = useFormState<InstitutionFormData>({
-    name: '',
-    type: '',
-    region: '',
-    numberOfStudents: ''
-  });
+  const { loading: actionLoading, setError } = useAuthActions();
+  const { setIsLoading } = useOnboarding();
 
-  if (loading || guardLoading) {
+  const form = useFormState<InstitutionFormValues>({ name: '', type: '', region: '', numberOfStudents: '' });
+
+  useEffect(() => {
+    if (!authLoading && !guardLoading && !user) {
+      router.replace('/auth');
+    }
+  }, [authLoading, guardLoading, user, router]);
+
+  if (authLoading || guardLoading || !user || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="relative">
-          <div className="animate-spin rounded-full h-12 w-12 border-2 border-transparent bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-border"></div>
-          <div className="absolute inset-0 rounded-full border-2 border-slate-700"></div>
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-transparent bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-border" />
+          <div className="absolute inset-0 rounded-full border-2 border-slate-700" />
         </div>
       </div>
     );
   }
 
-  // Redirect unauthenticated users efficiently (only in an effect)
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/auth');
-    }
-  }, [loading, user, router]);
-
-  if (!user) return null;
-  if (!profile) {
-    router.push('/auth');
-    return null;
-  }
-
-  const validateForm = (): boolean => {
+  const validate = () => {
     form.clearErrors();
-    let isValid = true;
+    let valid = true;
 
     if (!form.values.name.trim()) {
       form.setError('name', 'Institution name is required');
-      isValid = false;
+      valid = false;
     }
-
     if (!form.values.type) {
-      form.setError('type', 'Please select institution type');
-      isValid = false;
+      form.setError('type', 'Select an institution type');
+      valid = false;
     }
-
     if (!form.values.region) {
-      form.setError('region', 'Please select your region');
-      isValid = false;
+      form.setError('region', 'Select your region');
+      valid = false;
     }
 
-    if (form.values.numberOfStudents && 
-        (isNaN(Number(form.values.numberOfStudents)) || Number(form.values.numberOfStudents) < 1)) {
-      form.setError('numberOfStudents', 'Please enter a valid number of students');
-      isValid = false;
+    if (form.values.numberOfStudents) {
+      const parsed = Number(form.values.numberOfStudents);
+      if (!Number.isFinite(parsed) || parsed < 1) {
+        form.setError('numberOfStudents', 'Enter a positive number');
+        valid = false;
+      }
     }
 
-    return isValid;
+    return valid;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!validate()) {
+      return;
+    }
 
-    setIsOnboarding(true);
+    setIsLoading(true);
     try {
-      const payload = {
+      const response = await createInstitution({
         name: form.values.name.trim(),
-        type: form.values.type as InstitutionType,
+        type: form.values.type as InstitutionAdminOnboardingData['type'],
         region: form.values.region,
         numberOfStudents: form.values.numberOfStudents ? Number(form.values.numberOfStudents) : undefined,
-      };
+      });
 
-      console.log('[InstitutionOnboarding] calling createInstitution API', { payload });
-      const response = await createInstitution(payload);
-
-      if (response.success && response.redirectUrl) {
-        console.log('[InstitutionOnboarding] API call successful, navigating to', response.redirectUrl);
-        router.push(response.redirectUrl);
-      } else {
-        throw new Error(response.message || 'Failed to create institution');
+      if (!response.success) {
+        throw new Error(response.message ?? 'Failed to complete onboarding');
       }
-    } catch (err: any) {
-      console.error('[InstitutionOnboarding] API call error', err);
-      setError(err.message || 'Failed to create institution. Please try again.');
+
+      router.replace(response.redirectUrl ?? '/dashboard/institution');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create institution. Please try again.';
+      setError(message);
+      form.setError('api', message);
     } finally {
-      setIsOnboarding(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <aside className="relative hidden w-1/2 overflow-hidden lg:flex">
         <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-pink-500/10 blur-3xl" />
         </div>
-
         <div className="relative z-10 flex flex-col justify-center p-12">
           <div className="mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-6">
-              <span className="text-2xl">school</span>
+            <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-2xl">
+              🏫
             </div>
-            <h1 className="text-4xl font-bold text-white mb-4">
-              Empower Your Institution with AI
-            </h1>
-            <p className="text-xl text-slate-300 leading-relaxed">
-              Transform education with personalized AI tutors, comprehensive analytics, 
-              and automated lesson generation.
+            <h1 className="mb-4 text-4xl font-bold text-white">Empower your institution with AI</h1>
+            <p className="text-xl text-slate-300">
+              Transform teaching and learning with personalised AI tutors, real-time analytics, and automated content generation.
             </p>
           </div>
-
           <div className="space-y-6">
-            {benefits.map((benefit, index) => (
-              <div 
-                key={benefit.title}
-                className="flex items-start space-x-4 group"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="flex-shrink-0 w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center group-hover:bg-white/20 transition-colors duration-300">
-                  <span className="text-xl">{benefit.icon}</span>
-                </div>
+            {BENEFITS.map((benefit) => (
+              <div key={benefit.title} className="flex items-start space-x-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-xl">{benefit.icon}</div>
                 <div>
-                  <h3 className="text-white font-semibold mb-1">{benefit.title}</h3>
-                  <p className="text-slate-300 text-sm leading-relaxed">{benefit.description}</p>
+                  <h3 className="text-white font-semibold">{benefit.title}</h3>
+                  <p className="text-sm text-slate-300">{benefit.description}</p>
                 </div>
               </div>
             ))}
           </div>
-
-          <div className="mt-12 p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
-            <h3 className="text-white font-semibold mb-2">Trusted by Educational Leaders</h3>
-            <p className="text-slate-300 text-sm">
-              Join forward-thinking institutions already using Learning.ai to enhance 
-              student outcomes and reduce teacher workload.
-            </p>
+          <div className="mt-12 rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-slate-200">
+            Join leading institutions using Learning.ai to boost learner outcomes and reduce administrative workload.
           </div>
         </div>
-      </div>
+      </aside>
 
-      <div className="flex-1 flex items-center justify-center p-8">
+      <main className="flex flex-1 items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <div className="lg:hidden text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-4">
-              <span className="text-2xl">school</span>
+          <div className="mb-8 text-center lg:hidden">
+            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-2xl">
+              🏫
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Institution Setup</h1>
-            <p className="text-slate-300">Configure your institution's AI learning environment</p>
+            <h1 className="text-3xl font-bold text-white">Institution setup</h1>
+            <p className="text-slate-300">Configure your AI learning environment</p>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8">
-            <div className="hidden lg:block text-center mb-6">
-              <h2 className="text-2xl font-bold text-white mb-2">Institution Registration</h2>
-              <p className="text-slate-300">Let's set up your educational institution</p>
-            </div>
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
+            <h2 className="mb-2 hidden text-center text-2xl font-bold text-white lg:block">Institution registration</h2>
+            <p className="mb-6 hidden text-center text-slate-300 lg:block">Tell us a little about your organisation.</p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-slate-200 mb-2">
-                  Institution Name <span className="text-red-400">*</span>
+                <label htmlFor="name" className="mb-2 block text-sm font-medium text-slate-200">
+                  Institution name<span className="text-red-400">*</span>
                 </label>
                 <input
                   id="name"
-                  type="text"
                   value={form.values.name}
-                  onChange={(e) => form.setValue('name', e.target.value)}
-                  className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                    form.errors.name ? 'border-red-400' : 'border-white/20'
+                  onChange={(event) => form.setValue('name', event.target.value)}
+                  className={`w-full rounded-xl border px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    form.errors.name ? 'border-red-400 bg-red-500/10' : 'border-white/20 bg-white/10'
                   }`}
-                  placeholder="Enter your institution name"
+                  placeholder="Enter institution name"
                 />
-                {form.errors.name && (
-                  <p className="mt-1 text-sm text-red-400">{form.errors.name}</p>
-                )}
+                {form.errors.name && <p className="mt-1 text-sm text-red-400">{form.errors.name}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-200 mb-3">
-                  Institution Type <span className="text-red-400">*</span>
-                </label>
+                <span className="mb-3 block text-sm font-medium text-slate-200">
+                  Institution type<span className="text-red-400">*</span>
+                </span>
                 <div className="space-y-3">
-                  {institutionTypes.map((option) => (
-                    <div
-                      key={option.value}
-                      onClick={() => form.setValue('type', option.value)}
-                      className={`p-4 rounded-xl border cursor-pointer transition-all hover:border-purple-400 ${
-                        form.values.type === option.value
-                          ? 'border-purple-400 bg-purple-500/10'
-                          : 'border-white/20 bg-white/5'
-                      }`}
-                    >
-                      <div className="flex items-start">
-                        <div className={`w-4 h-4 rounded-full border-2 mt-1 mr-3 ${
-                          form.values.type === option.value
-                            ? 'border-purple-400 bg-purple-400'
-                            : 'border-white/40'
-                        }`}></div>
-                        <div>
-                          <h3 className="text-white font-medium">{option.label}</h3>
-                          <p className="text-slate-300 text-sm mt-1">{option.description}</p>
+                  {INSTITUTION_TYPES.map((option) => {
+                    const isActive = form.values.type === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => form.setValue('type', option.value)}
+                        className={`w-full rounded-xl border p-4 text-left transition ${
+                          isActive ? 'border-purple-400 bg-purple-500/10' : 'border-white/20 bg-white/5 hover:border-purple-400'
+                        }`}
+                      >
+                        <div className="flex items-start">
+                          <div className={`mr-3 mt-1 h-4 w-4 rounded-full border-2 ${
+                            isActive ? 'border-purple-400 bg-purple-400' : 'border-white/40'
+                          }`} />
+                          <div>
+                            <h3 className="text-white font-medium">{option.label}</h3>
+                            <p className="text-sm text-slate-300">{option.description}</p>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
-                {form.errors.type && (
-                  <p className="mt-2 text-sm text-red-400">{form.errors.type}</p>
-                )}
+                {form.errors.type && <p className="mt-2 text-sm text-red-400">{form.errors.type}</p>}
               </div>
 
               <div>
-                <label htmlFor="region" className="block text-sm font-medium text-slate-200 mb-2">
-                  Region <span className="text-red-400">*</span>
+                <label htmlFor="region" className="mb-2 block text-sm font-medium text-slate-200">
+                  Region<span className="text-red-400">*</span>
                 </label>
                 <select
                   id="region"
                   value={form.values.region}
-                  onChange={(e) => form.setValue('region', e.target.value)}
-                  className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                    form.errors.region ? 'border-red-400' : 'border-white/20'
+                  onChange={(event) => form.setValue('region', event.target.value)}
+                  className={`w-full rounded-xl border px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    form.errors.region ? 'border-red-400 bg-red-500/10' : 'border-white/20 bg-white/10'
                   }`}
                 >
-                  <option value="" className="bg-slate-800">Select your region</option>
-                  {kenyanRegions.map((region) => (
-                    <option key={region} value={region} className="bg-slate-800">
+                  <option value="" className="bg-slate-900">Select your region</option>
+                  {KENYAN_REGIONS.map((region) => (
+                    <option key={region} value={region} className="bg-slate-900">
                       {region}
                     </option>
                   ))}
                 </select>
-                {form.errors.region && (
-                  <p className="mt-1 text-sm text-red-400">{form.errors.region}</p>
-                )}
+                {form.errors.region && <p className="mt-1 text-sm text-red-400">{form.errors.region}</p>}
               </div>
 
               <div>
-                <label htmlFor="numberOfStudents" className="block text-sm font-medium text-slate-200 mb-2">
-                  Number of Students <span className="text-slate-400">(Optional)</span>
+                <label htmlFor="students" className="mb-2 block text-sm font-medium text-slate-200">
+                  Number of students<span className="text-slate-400"> (optional)</span>
                 </label>
                 <input
-                  id="numberOfStudents"
+                  id="students"
                   type="number"
-                  min="1"
+                  min={1}
                   value={form.values.numberOfStudents}
-                  onChange={(e) => form.setValue('numberOfStudents', e.target.value)}
-                  className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                    form.errors.numberOfStudents ? 'border-red-400' : 'border-white/20'
+                  onChange={(event) => form.setValue('numberOfStudents', event.target.value)}
+                  className={`w-full rounded-xl border px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    form.errors.numberOfStudents ? 'border-red-400 bg-red-500/10' : 'border-white/20 bg-white/10'
                   }`}
-                  placeholder="Approximate number of students"
+                  placeholder="Approximate number of learners"
                 />
                 {form.errors.numberOfStudents && (
                   <p className="mt-1 text-sm text-red-400">{form.errors.numberOfStudents}</p>
                 )}
-                <p className="mt-1 text-xs text-slate-400">
-                  This helps us recommend the right plan for your institution
-                </p>
+                <p className="mt-1 text-xs text-slate-400">Helps us recommend the best onboarding plan for you.</p>
               </div>
 
               {form.errors.api && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-400/20">
-                  <p className="text-red-400 text-sm">{form.errors.api}</p>
+                <div className="rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">
+                  {form.errors.api}
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={actionLoading}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 py-3 text-white transition hover:from-purple-600 hover:to-pink-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {actionLoading ? (
                   <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-transparent bg-gradient-to-r from-white to-transparent bg-clip-border mr-2"></div>
-                    Setting up institution...
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-transparent bg-gradient-to-r from-white to-transparent bg-clip-border" />
+                    Setting up institution…
                   </div>
                 ) : (
-                  'Complete Institution Setup'
+                  'Complete institution setup'
                 )}
               </button>
             </form>
 
             <button
+              type="button"
               onClick={() => router.push('/onboarding/choose-role')}
-              className="w-full mt-4 text-slate-400 hover:text-white transition-colors duration-200 flex items-center justify-center"
+              className="mt-4 flex w-full items-center justify-center text-sm text-slate-400 transition hover:text-white"
             >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back to role selection
             </button>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

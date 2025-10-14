@@ -17,7 +17,8 @@ export async function GET(
       return NextResponse.json({ message: 'Not found' }, { status: 404 });
     }
     return NextResponse.json({ id, ...doc.data() });
-  } catch (error: any) {
-    return NextResponse.json({ message: error?.message || 'Internal server error' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ message }, { status: 500 });
   }
 }

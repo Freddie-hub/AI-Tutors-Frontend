@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json({ success: true, redirectUrl: '/dashboard/student' });
-  } catch (error: any) {
-    const message = error?.message || 'Internal server error';
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     const status = message === 'Unauthorized' ? 401 : message === 'Forbidden' ? 403 : 500;
     return NextResponse.json({ success: false, message }, { status });
   }

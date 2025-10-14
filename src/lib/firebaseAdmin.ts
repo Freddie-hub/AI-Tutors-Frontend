@@ -37,21 +37,20 @@ if (emulatorRequested && !process.env.FIRESTORE_EMULATOR_HOST) {
 
 if (!admin.apps.length) {
   try {
-    if (hasServiceAccountCreds) {
+    if (hasServiceAccountCreds && projectId && clientEmail && privateKey) {
       admin.initializeApp({
         credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-        projectId: projectId,
-      } as any);
+        projectId,
+      });
     } else if (emulatorRequested) {
       // Provide a projectId for emulator even without credentials
       const emulatorProjectId = projectId || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-learning-ai';
-      admin.initializeApp({ projectId: emulatorProjectId } as any);
+      admin.initializeApp({ projectId: emulatorProjectId });
     } else {
       // Fallback: Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS or local ADC)
       admin.initializeApp();
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('[firebaseAdmin] Failed to initialize Firebase Admin SDK. Ensure either FIREBASE_* env vars are set or ADC/Emulator is configured.', err);
     throw err;
   }
@@ -139,11 +138,18 @@ class InMemoryDocRef {
 
   async update(data: InMemoryDocumentData) {
     if (!this.store.has(this.docId)) {
-      const err = new Error('Document does not exist');
-      (err as any).code = 'NOT_FOUND';
-      throw err;
+      throw new InMemoryNotFoundError('Document does not exist');
     }
     await this.set(data, { merge: true });
+  }
+}
+
+class InMemoryNotFoundError extends Error {
+  readonly code = 'NOT_FOUND';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'InMemoryNotFoundError';
   }
 }
 

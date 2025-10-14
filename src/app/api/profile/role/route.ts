@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 import { adminDb, verifyBearerToken, FieldValue } from '@/lib/firebaseAdmin';
+import type { DocumentData } from 'firebase-admin/firestore';
 
 // POST /api/profile/role
 // Body: { uid: string, role: 'individual-student' | 'institution-student' | 'institution-admin' | 'upskill-individual' }
@@ -19,10 +20,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
-    await adminDb.collection('profiles').doc(uid).set(
-      { role, updatedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
+    await adminDb
+      .collection('profiles')
+      .doc(uid)
+      .set(
+        { role, updatedAt: FieldValue.serverTimestamp() } as DocumentData,
+        { merge: true },
+      );
 
     // Simple redirect mapping
     const roleRedirectMap: Record<string, string> = {
@@ -35,8 +39,8 @@ export async function POST(req: NextRequest) {
     const redirectUrl = roleRedirectMap[role] || '/dashboard';
 
     return NextResponse.json({ success: true, redirectUrl });
-  } catch (error: any) {
-    const message = error?.message || 'Internal server error';
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     const status = message === 'Unauthorized' ? 401 : message === 'Forbidden' ? 403 : 500;
     return NextResponse.json({ success: false, message }, { status });
   }

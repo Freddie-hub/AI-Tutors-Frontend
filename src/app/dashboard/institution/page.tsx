@@ -54,7 +54,7 @@ export default function InstitutionDashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Institution Management</h2>
           <p className="text-gray-600">
-            Manage your institution's learning programs and student progress from this dashboard.
+            Manage your institution’s learning programs and student progress from this dashboard.
           </p>
           
           <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">

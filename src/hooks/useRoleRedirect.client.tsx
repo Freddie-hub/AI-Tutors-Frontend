@@ -221,7 +221,7 @@ export function withRoleProtection<P extends object>(
           <div className="text-center">
             <div className="text-6xl mb-4">🚫</div>
             <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
-            <p className="text-slate-300">You don't have permission to view this page.</p>
+            <p className="text-slate-300">You don’t have permission to view this page.</p>
           </div>
         </div>
       );

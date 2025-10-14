@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 import { adminDb, verifyBearerToken, FieldValue } from '@/lib/firebaseAdmin';
+import type { DocumentData } from 'firebase-admin/firestore';
 
 export async function GET(
   req: NextRequest,
@@ -28,8 +29,9 @@ export async function GET(
     let doc = null;
     try {
       doc = await ref.get();
-    } catch (err: any) {
-      if (err.code === 5 || err.code === 'not-found' || err.code === 'NOT_FOUND') {
+    } catch (err: unknown) {
+      const errorCode = typeof err === 'object' && err !== null && 'code' in err ? (err as { code?: unknown }).code : undefined;
+      if (errorCode === 5 || errorCode === 'not-found' || errorCode === 'NOT_FOUND') {
         doc = null;
       } else {
         throw err;
@@ -47,9 +49,9 @@ export async function GET(
         photoURL: decoded.picture ?? null,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-      } as const;
+      };
 
-      await ref.set(defaultProfile);
+  await ref.set(defaultProfile as DocumentData);
 
       return NextResponse.json({
         uid,
@@ -65,10 +67,7 @@ export async function GET(
     return NextResponse.json({ uid, ...doc.data() }, { status: 200 });
 
   } catch (error: unknown) {
-    const message =
-      typeof error === 'object' && error !== null && 'message' in error
-        ? (error as { message: string }).message
-        : 'Internal server error';
+    const message = error instanceof Error ? error.message : 'Internal server error';
 
     console.error('[ProfileRoute] Failed to load or create profile', {
       uid: requestedUid,
