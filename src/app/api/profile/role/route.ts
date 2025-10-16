@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       'institution-student': '/onboarding/student',
       'institution-admin': '/onboarding/institution',
       'upskill-individual': '/onboarding/upskill',
+      'teacher': '/onboarding/teacher',
     };
 
     const redirectUrl = roleRedirectMap[role] || '/dashboard';
