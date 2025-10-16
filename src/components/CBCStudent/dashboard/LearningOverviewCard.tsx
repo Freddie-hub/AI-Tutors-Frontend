@@ -64,7 +64,7 @@ export default function LearningOverviewCard() {
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="px-3 py-1.5 text-xs font-medium bg-[#0b1113] border border-white/6 rounded-lg text-[#9aa6b2] focus:outline-none focus:ring-2 focus:ring-purple-400"
+          className="px-3 py-1.5 text-xs font-medium bg-[#0b1113] border border-white/8 rounded-lg text-[#9aa6b2] focus:outline-none focus:ring-2 focus:ring-purple-400/40"
         >
           <option>Weekly</option>
           <option>Monthly</option>
@@ -73,7 +73,7 @@ export default function LearningOverviewCard() {
 
       {/* Big Stat */}
       <div className="mb-6">
-        <p className="text-3xl font-bold text-white/95">834.6</p>
+        <p className="text-3xl font-extrabold tracking-tight text-white/95">834.6</p>
         <p className="text-sm text-[#9aa6b2] mt-1">Hours Spent</p>
       </div>
 
@@ -88,7 +88,7 @@ export default function LearningOverviewCard() {
               y1={getY(value)}
               x2={width - padding}
               y2={getY(value)}
-              stroke="#1a1f26"
+              stroke="#12171c"
               strokeWidth="1"
             />
           ))}

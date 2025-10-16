@@ -15,7 +15,7 @@ export default function DashboardLayout({ children, active }: DashboardLayoutPro
     year: 'numeric',
   });
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-[#0f1720] to-[#0b1216]">
+    <div className="flex min-h-screen bg-gradient-to-br from-[#0a0f14] via-[#0b1113] to-[#0a0f14]">
       {/* Sidebar */}
       <SidebarNav active={active} />
 

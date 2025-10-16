@@ -53,21 +53,21 @@ export default function ProgressSummary() {
         </div>
 
         {/* Continue Learning - right side */}
-        <div className="lg:col-span-2 border-t lg:border-t-0 lg:border-l border-white/6 pt-4 lg:pt-0 lg:pl-5 min-w-0 h-full flex flex-col">
+        <div className="lg:col-span-2 border-t lg:border-t-0 lg:border-l border-white/8 pt-4 lg:pt-0 lg:pl-5 min-w-0 h-full flex flex-col">
           <div className="flex items-center justify-between mb-3 gap-3">
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-semibold text-white/95 leading-tight">Continue learning</h3>
               <p className="text-[11px] text-[#9aa6b2] mt-0.5 leading-tight">Latest topic you were learning</p>
             </div>
             <button
-              className="px-2.5 py-1.5 rounded-lg border border-[#7c3aed] text-[#7c3aed] font-medium text-[11px] shrink-0 hover:bg-gradient-to-r hover:from-[#6b21a8] hover:to-[#7c3aed] hover:text-white hover:border-transparent transition-all focus:outline-none focus:ring-2 focus:ring-purple-400"
+              className="px-2.5 py-1.5 rounded-lg border border-[#7c3aed] text-[#7c3aed] font-medium text-[11px] shrink-0 hover:bg-gradient-to-r hover:from-[#6b21a8] hover:to-[#7c3aed] hover:text-white hover:border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400/40"
               aria-label="Continue learning"
             >
               Continue →
             </button>
           </div>
 
-          <div className="p-3 rounded-xl bg-[#0b0f12] border border-white/6">
+          <div className="p-3 rounded-xl bg-[#0b0f12] border border-white/8 ring-1 ring-white/5">
             <div className="flex flex-col gap-2.5">
 
               {/* Progress bar */}
@@ -76,12 +76,12 @@ export default function ProgressSummary() {
                   <p className="text-[11px] text-[#9aa6b2]">Course Progress</p>
                   <p className="text-[11px] font-semibold text-white/90">78%</p>
                 </div>
-                <div className="relative w-full h-[6px] bg-[#0b0f12] rounded-full overflow-hidden">
+                <div className="relative w-full h-[6px] bg-[#0a0f14] rounded-full overflow-hidden">
                   <div
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#6b21a8] to-[#7c3aed] rounded-full"
+                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#6b21a8] via-[#7c3aed] to-[#a855f7] rounded-full"
                     style={{ width: `78%` }}
                   >
-                    <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-white rounded-full"></div>
+                    <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-white/90 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.6)]"></div>
                   </div>
                 </div>
               </div>

@@ -25,8 +25,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Scrollbar styling: thin and high contrast (WebKit) */
-/* Applies to body and any element with overflow (e.g., sidebar nav) */
+/* Default scrollbar styling: visible but minimal */
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -49,6 +48,16 @@ body {
 
 /* Firefox */
 * {
-  scrollbar-width: thin; /* auto | thin | none */
+  scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.8) rgba(255, 255, 255, 0.06);
+}
+
+/*  Hide scrollbar but keep scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }

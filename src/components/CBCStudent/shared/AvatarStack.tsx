@@ -30,7 +30,7 @@ export default function AvatarStack({ avatars = [], max = 4, size = 32 }: Avatar
       {visibleAvatars.map((avatar, index) => (
         <div
           key={index}
-          className="relative inline-block rounded-full border-2 border-[#0e1316] overflow-hidden"
+          className="relative inline-block rounded-full border-2 border-[#0e1316] overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset]"
           style={{
             width: size,
             height: size,
@@ -47,7 +47,7 @@ export default function AvatarStack({ avatars = [], max = 4, size = 32 }: Avatar
       ))}
       {remaining > 0 && (
         <div
-          className="relative inline-flex items-center justify-center rounded-full border-2 border-[#0e1316] bg-[#1a1f26] text-xs font-semibold text-[#9aa6b2]"
+          className="relative inline-flex items-center justify-center rounded-full border-2 border-[#0e1316] bg-[#12171c] text-xs font-semibold text-[#9aa6b2]"
           style={{
             width: size,
             height: size,
