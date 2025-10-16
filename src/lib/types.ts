@@ -1,4 +1,4 @@
-export type UserRole = 'individual-student' | 'institution-student' | 'institution-admin' | 'upskill-individual';
+export type UserRole = 'individual-student' | 'institution-student' | 'institution-admin' | 'upskill-individual' | 'teacher';
 
 export type CurriculumType = 'CBC' | 'British' | 'Adaptive';
 
@@ -23,6 +23,14 @@ export interface UpskillIndividualOnboardingData {
   goal: string;
   preferredSkills: string[];
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+}
+
+export interface TeacherOnboardingData {
+  name: string;
+  subject: string;
+  curriculum: string;
+  school: string;
+  yearsExperience: string;
 }
 
 export interface InstitutionAdminOnboardingData {

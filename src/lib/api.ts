@@ -8,6 +8,7 @@ import type {
   Institution,
   InstitutionAdminOnboardingData,
   InstitutionStudentOnboardingData,
+  TeacherOnboardingData,
   UpskillIndividualOnboardingData,
   UserProfile,
   UserRole,
@@ -157,6 +158,20 @@ export const onboardUpskillIndividual = async (
 ): Promise<ApiResponse> => {
   const response = await requestWithToken<Partial<ApiResponse>>(
     '/onboarding/upskill',
+    'POST',
+    token,
+    { uid, ...data },
+  );
+  return normalizeResponse(response);
+};
+
+export const setTeacherProfile = async (
+  uid: string,
+  data: TeacherOnboardingData,
+  token?: string,
+): Promise<ApiResponse> => {
+  const response = await requestWithToken<Partial<ApiResponse>>(
+    '/onboarding/teacher',
     'POST',
     token,
     { uid, ...data },

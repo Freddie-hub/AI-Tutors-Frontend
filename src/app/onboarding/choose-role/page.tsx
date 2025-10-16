@@ -23,7 +23,7 @@ const ROLE_OPTIONS: RoleOption[] = [
     title: 'Individual Student',
     description:
       'Learn independently with AI-personalised study plans and real-time feedback.',
-    icon: '🎓',
+    icon: 'student',
     fallbackRedirect: '/onboarding/student',
   },
   {
@@ -31,7 +31,7 @@ const ROLE_OPTIONS: RoleOption[] = [
     title: 'Institution Admin',
     description:
       'Manage enrolment, performance tracking, and AI tutor deployment for your organisation.',
-    icon: '🏫',
+    icon: 'institution',
     fallbackRedirect: '/onboarding/institution',
   },
   {
@@ -39,8 +39,16 @@ const ROLE_OPTIONS: RoleOption[] = [
     title: 'Upskill Individual',
     description:
       'Accelerate your career with curated skill paths and adaptive AI learning tools.',
-    icon: '💡',
+    icon: 'upskill',
     fallbackRedirect: '/onboarding/upskill',
+  },
+  {
+    id: 'teacher',
+    title: 'Teacher',
+    description:
+      'Create and manage AI-assisted lessons, monitor student progress, and personalise learning experiences.',
+    icon: 'teacher',
+    fallbackRedirect: '/onboarding/teacher',
   },
 ];
 
@@ -49,6 +57,7 @@ const ROLE_REDIRECT: Record<UserRole, string> = {
   'institution-student': '/onboarding/student',
   'institution-admin': '/onboarding/institution',
   'upskill-individual': '/onboarding/upskill',
+  'teacher': '/onboarding/teacher',
 };
 
 export default function ChooseRolePage() {
@@ -61,7 +70,7 @@ export default function ChooseRolePage() {
 
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
-  // Only redirect to /auth if not authenticated. Let the hook handle other cases.
+  // Redirect to /auth if not authenticated
   useEffect(() => {
     if (!authLoading && !guardLoading && !user) {
       router.replace('/auth');
@@ -140,7 +149,7 @@ export default function ChooseRolePage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-white text-gray-800 px-4 py-16">
       <div className="text-center mb-16 max-w-2xl">
         <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-100 rounded-xl mb-6">
-          <span className="text-2xl">🚀</span>
+          <span className="text-2xl font-bold text-blue-600">L</span>
         </div>
         <h1 className="text-4xl font-semibold mb-3">Welcome to Learning.ai</h1>
         <p className="text-lg text-gray-600">{helpText}</p>
@@ -152,7 +161,7 @@ export default function ChooseRolePage() {
         </div>
       )}
 
-      <div className="grid max-w-4xl gap-6 md:grid-cols-3 w-full">
+      <div className="grid max-w-4xl gap-6 md:grid-cols-4 w-full">
         {ROLE_OPTIONS.map((option) => {
           const isSelected = selectedRole === option.id;
           const isCurrentRole = profile?.role === option.id;
