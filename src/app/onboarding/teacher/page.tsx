@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
 import { useOnboarding } from '@/lib/context/OnboardingContext';
 import { setTeacherProfile } from '@/lib/api'; // You should implement this API call
-import type { UserRole } from '@/lib/types';
+import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
 
 type TeacherFormValues = {
   name: string;
@@ -18,9 +18,10 @@ type TeacherFormValues = {
 
 export default function TeacherOnboardingPage() {
   const router = useRouter();
-  const { user, profile, loading: authLoading } = useAuthUser();
+  const { user, loading: authLoading } = useAuthUser();
   const { setIsLoading } = useOnboarding();
   const { setError: setGlobalError } = useAuthActions();
+  const { isLoading: guardLoading } = useOnboardingProtection();
 
   const form = useFormState<TeacherFormValues>({
     name: '',
@@ -39,12 +40,12 @@ export default function TeacherOnboardingPage() {
   const progress = useMemo(() => Math.round((step / totalSteps) * 100), [step, totalSteps]);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !guardLoading && !user) {
       router.replace('/auth');
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, guardLoading, user, router]);
 
-  if (authLoading || !user) {
+  if (authLoading || guardLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="h-12 w-12 animate-spin rounded-full border-2 border-transparent bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-border" />
@@ -249,13 +250,13 @@ export default function TeacherOnboardingPage() {
                   Which curriculum do you teach?<span className="text-red-400">*</span>
                 </span>
                 <div className="space-y-3">
-                  {['CBC', 'GCSE', 'Other'].map((curriculum) => {
+                  {(['CBC', 'GCSE', 'Other'] as const).map((curriculum) => {
                     const isActive = form.values.curriculum === curriculum;
                     return (
                       <button
                         key={curriculum}
                         type="button"
-                        onClick={() => form.setValue('curriculum', curriculum as any)}
+                        onClick={() => form.setValue('curriculum', curriculum)}
                         className={`w-full rounded-xl border p-4 text-left transition-colors ${
                           isActive
                             ? 'border-blue-400 bg-blue-500/10'

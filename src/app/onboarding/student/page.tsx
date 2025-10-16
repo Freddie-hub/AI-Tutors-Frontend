@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { onboardIndividualStudent, onboardInstitutionStudent } from '@/lib/api';
 import { useAuthActions, useAuthUser, useFormState } from '@/lib/hooks';
 import { useOnboarding } from '@/lib/context/OnboardingContext';
+import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
 import type { CurriculumType } from '@/lib/types';
 
 type StudentFormValues = {
@@ -58,6 +59,8 @@ export default function StudentOnboardingPage() {
   const { user, profile, institution, loading: authLoading } = useAuthUser();
   const { setIsLoading } = useOnboarding();
   const { setError: setGlobalError } = useAuthActions();
+  // Redirect away if already onboarded, and gate unauthenticated
+  const { isLoading: guardLoading } = useOnboardingProtection();
 
   const isInstitutionStudent = profile?.role === 'institution-student';
 
@@ -79,12 +82,12 @@ export default function StudentOnboardingPage() {
   const progress = useMemo(() => Math.round((step / totalSteps) * 100), [step, totalSteps]);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !guardLoading && !user) {
       router.replace('/auth');
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, guardLoading, user, router]);
 
-  if (authLoading || !user) {
+  if (authLoading || guardLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="relative">
