@@ -1,39 +1,40 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useAuthUser } from '@/lib/hooks';
 
 export default function TopBar() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [scrolled, setScrolled] = useState(false);
+  const { user, profile } = useAuthUser();
+
+  const displayName = profile?.displayName || user?.displayName || 'Student';
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 0);
+    // Initialize state in case the page is already scrolled
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <div className="h-16 flex items-center justify-between px-6 border-b border-white/6 bg-[#0e1316]/95 backdrop-blur supports-[backdrop-filter]:bg-[#0e1316]/80 sticky top-0 z-30">
-      {/* Left: Greeting */}
-      <div>
-        <h1 className="text-lg font-semibold text-white/95">Welcome back, Nova Taya</h1>
-      </div>
-
-      {/* Center: Search */}
-  <div className="max-w-[640px] w-full mx-4 sm:mx-8">
-        <div className="rounded-full bg-[#0b1113] px-4 py-2 flex items-center gap-3 border border-white/6">
-          {/* Search Icon */}
-          <svg className="w-5 h-5 text-[#9aa6b2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          
-          {/* Input */}
-          <input
-            type="text"
-            placeholder="Search here..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 bg-transparent text-sm text-white/90 placeholder-[#9aa6b2] focus:outline-none"
-            aria-label="Search"
-          />
-          
-          {/* Mic Icon */}
-          <svg className="w-5 h-5 text-[#9aa6b2] cursor-pointer hover:text-white/90 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-          </svg>
+    <div
+      className={`h-16 flex items-center justify-between px-6 border-b border-white/6 sticky top-0 z-30 transition-colors duration-300 ${
+        scrolled ? 'bg-[#0b1113]/70 backdrop-blur-md' : 'bg-[#0b1113]/30 backdrop-blur'
+      }`}
+    >
+      {/* Left: Welcome + Date */}
+      <div className="mx-2 sm:mx-4">
+        <div className="flex items-center gap-3 leading-tight">
+          <span className="text-white/95 text-sm sm:text-base font-semibold">Welcome back, {displayName}</span>
+          <span className="inline-block h-4 w-px bg-white/15" aria-hidden="true"></span>
+          <span className="text-[#9aa6b2] text-xs sm:text-sm font-medium">{formattedDate}</span>
         </div>
       </div>
 

@@ -3,10 +3,8 @@
 import { useDashboardProtection } from '@/hooks/useRoleRedirect';
 import DashboardLayout from '@/components/CBCStudent/layout/DashboardLayout';
 import LearningOverviewCard from '@/components/CBCStudent/dashboard/LearningOverviewCard';
-import SubjectBreakdown from '@/components/CBCStudent/dashboard/SubjectBreakdown';
 import ProgressSummary from '@/components/CBCStudent/dashboard/ProgressSummary';
 import UpcomingLessons from '@/components/CBCStudent/dashboard/UpcomingLessons';
-import ContinueLearningCard from '@/components/CBCStudent/dashboard/ContinueLearningCard';
 
 export default function Page() {
     // Allow student-type roles only; must be onboarded
@@ -20,22 +18,18 @@ export default function Page() {
               - items-start prevents equal-height stretching of cards
               - min-w-0 on columns avoids overflow from wide content (e.g., charts)
             */}
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                {/* Left Column */}
-                <div className="lg:col-span-5 space-y-6 min-w-0">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 lg:auto-rows-fr gap-6 items-start">
+                {/* Left: Activity column (spans two rows) */}
+                <div className="lg:col-span-5 lg:row-span-2 space-y-6 min-w-0">
                     <LearningOverviewCard />
-                    <SubjectBreakdown />
                 </div>
 
-                {/* Middle Column */}
-                <div className="lg:col-span-4 space-y-6 min-w-0">
+                {/* Right: Two cards stacked to match Activity height */}
+                <div className="lg:col-span-7 space-y-6 min-w-0">
+                    {/* Top: Progress Summary fills remaining width */}
                     <ProgressSummary />
+                    {/* Bottom: Upcoming Lessons */}
                     <UpcomingLessons />
-                </div>
-
-                {/* Right Column */}
-                <div className="lg:col-span-3 min-w-0">
-                    <ContinueLearningCard />
                 </div>
             </div>
         </DashboardLayout>

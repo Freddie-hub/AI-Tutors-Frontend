@@ -29,9 +29,9 @@ export default function SidebarNav({ active = 'Dashboard' }: SidebarNavProps) {
       )
     },
     {
-      id: 'Courses',
-      label: 'Courses',
-      href: '/dashboard/student/cbc/courses',
+      id: 'Classroom',
+      label: 'Classroom',
+      href: '/dashboard/student/cbc/classroom',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -39,9 +39,9 @@ export default function SidebarNav({ active = 'Dashboard' }: SidebarNavProps) {
       )
     },
     {
-      id: 'Tutorials',
-      label: 'Tutorials',
-      href: '/dashboard/student/cbc/tutorials',
+      id: 'Courses',
+      label: 'Courses',
+      href: '/dashboard/student/cbc/courses',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -104,7 +104,7 @@ export default function SidebarNav({ active = 'Dashboard' }: SidebarNavProps) {
       </div>
 
       {/* Navigation Items */}
-  <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = activeItem === item.id;
           return (
@@ -114,12 +114,14 @@ export default function SidebarNav({ active = 'Dashboard' }: SidebarNavProps) {
               onClick={() => setActiveItem(item.id)}
               className={`flex items-center gap-4 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-gradient-to-r from-[#6b21a8] to-[#7c3aed] text-white shadow-lg shadow-purple-500/20'
-                  : 'text-[#9aa6b2] hover:bg-white/3 hover:text-white/90'
+                  ? 'text-[#7c3aed]'
+                  : 'text-[#9aa6b2] hover:text-white/90'
               }`}
               aria-label={item.label}
             >
-              {item.icon}
+              <span className={`${isActive ? 'text-[#7c3aed]' : 'text-[#9aa6b2] group-hover:text-white/90'}`}>
+                {item.icon}
+              </span>
               <span>{item.label}</span>
             </Link>
           );
