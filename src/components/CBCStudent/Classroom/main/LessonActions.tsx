@@ -17,7 +17,7 @@ export default function LessonActions() {
           <Button className="bg-transparent border border-white/20 hover:bg-white/5 hover:border-white/30 text-white px-5 py-2.5 rounded-xl font-medium transition-all duration-200">
             Save Notes
           </Button>
-          <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-purple-500/25 transition-all duration-200">
+          <Button className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 py-2.5 rounded-xl font-semibold transition-all duration-200">
             Mark Complete
           </Button>
         </div>

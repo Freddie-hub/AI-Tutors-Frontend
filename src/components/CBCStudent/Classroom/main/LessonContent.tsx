@@ -12,7 +12,7 @@ export default function LessonContent() {
       <div className="prose prose-invert max-w-none">
         {/* Content Section Header */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-1 bg-gradient-to-b from-purple-500 to-blue-500 rounded-full"></div>
+          <div className="h-8 w-1 bg-[#7c3aed] rounded-full"></div>
           <h2 className="text-lg font-bold text-white m-0">Lesson Content</h2>
         </div>
         
@@ -26,7 +26,7 @@ export default function LessonContent() {
           {/* Example placeholder sections - remove when real content loads */}
           {!lesson.content && (
             <>
-              <div className="border-l-2 border-purple-500/30 pl-4 py-2">
+              <div className="border-l-2 border-[#7c3aed]/30 pl-4 py-2">
                 <p className="text-white/60 italic">
                   "Key concepts and explanations will be displayed in an easy-to-read format."
                 </p>
@@ -34,7 +34,7 @@ export default function LessonContent() {
               
               <div className="grid grid-cols-2 gap-4 mt-6">
                 <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                  <div className="text-purple-400 text-sm font-semibold mb-2">Key Point 1</div>
+                  <div className="text-[#c4b5fd] text-sm font-semibold mb-2">Key Point 1</div>
                   <div className="text-white/70 text-sm">Important concepts highlighted</div>
                 </div>
                 <div className="p-4 rounded-lg bg-white/5 border border-white/10">

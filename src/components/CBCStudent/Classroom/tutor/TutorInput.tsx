@@ -19,9 +19,9 @@ export default function TutorInput({ onSend }: TutorInputProps) {
 
   return (
     <div className="mt-3 border-t border-white/10 pt-3">
-      <div className="flex items-center gap-2 bg-white/5 border border-white/20 rounded-xl p-1.5 backdrop-blur-sm hover:border-purple-500/50 transition-colors duration-200">
+      <div className="flex items-center gap-2 bg-white/5 border border-white/20 rounded-xl p-1.5 backdrop-blur-sm hover:border-white/30 transition-colors duration-200">
         <button
-          className="shrink-0 w-8 h-8 grid place-items-center rounded-lg bg-white/5 hover:bg-purple-600/30 text-white/80 hover:text-purple-400 transition-all duration-200"
+          className="shrink-0 w-8 h-8 grid place-items-center rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-all duration-200"
           title="Voice Input"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -42,7 +42,7 @@ export default function TutorInput({ onSend }: TutorInputProps) {
         <Button
           onClick={send}
           disabled={!text.trim()}
-          className="shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-white/10 disabled:to-white/10 disabled:text-white/30 text-white rounded-lg px-3 py-1.5 shadow-lg shadow-purple-500/25 transition-all duration-200"
+          className="shrink-0 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:bg-white/5 disabled:text-white/30 text-white rounded-lg px-3 py-1.5 transition-all duration-200 focus:ring-0 focus:ring-transparent focus:outline-none"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M22 2 11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>

@@ -19,7 +19,7 @@ export default function ClassroomLayout() {
         : view === 'both'
         ? 'w-[60%]'
         : 'w-0';
-    const border = view === 'right' ? '' : 'border-r-2 border-purple-500/30';
+    const border = view === 'right' ? '' : 'border-r border-black';
     return `${base} ${width} ${border}`;
   }, [view]);
 
@@ -41,21 +41,21 @@ export default function ClassroomLayout() {
         {/* Top controls bar (prevents overlapping content) */}
         <div className="flex items-center justify-center gap-2 p-2 border-b border-white/10 bg-[#0E0E10]">
           <Button
-            className={`px-3 py-1 text-xs border border-white/10 ${view === 'left' ? 'bg-purple-600 hover:bg-purple-600' : 'bg-white/10 hover:bg-white/20'} `}
+            className={`px-3 py-1 text-xs border border-white/10 ${view === 'left' ? 'bg-[#7c3aed] hover:bg-[#6d28d9]' : 'bg-white/10 hover:bg-white/20'} `}
             onClick={() => setView('left')}
             aria-label="Show main content only"
           >
             Main Only
           </Button>
           <Button
-            className={`px-3 py-1 text-xs border border-white/10 ${view === 'both' ? 'bg-purple-600 hover:bg-purple-600' : 'bg-white/10 hover:bg-white/20'} `}
+            className={`px-3 py-1 text-xs border border-white/10 ${view === 'both' ? 'bg-[#7c3aed] hover:bg-[#6d28d9]' : 'bg-white/10 hover:bg-white/20'} `}
             onClick={() => setView('both')}
             aria-label="Show split view"
           >
             Split View
           </Button>
           <Button
-            className={`px-3 py-1 text-xs border border-white/10 ${view === 'right' ? 'bg-purple-600 hover:bg-purple-600' : 'bg-white/10 hover:bg-white/20'} `}
+            className={`px-3 py-1 text-xs border border-white/10 ${view === 'right' ? 'bg-[#7c3aed] hover:bg-[#6d28d9]' : 'bg-white/10 hover:bg-white/20'} `}
             onClick={() => setView('right')}
             aria-label="Show tutor only"
           >
@@ -79,10 +79,10 @@ export default function ClassroomLayout() {
           <div className={rightClasses}>
             {/* Visual Separator Bar (only when tutor visible and not full-width left only) */}
             {view !== 'right' && view !== 'left' && (
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 via-blue-500 to-purple-500 opacity-50"></div>
+              <div className="absolute left-0 top-0 bottom-0 w-px bg-black"></div>
             )}
-            <div className="h-full p-6 overflow-y-auto scrollbar-hide">
-              <div className={view === 'left' ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}>
+            <div className="h-full p-6 overflow-hidden">
+              <div className={(view === 'left' ? 'opacity-0 pointer-events-none select-none' : 'opacity-100') + ' h-full flex flex-col min-h-0'}>
                 <TutorPanel />
               </div>
             </div>

@@ -22,15 +22,15 @@ export default function TutorChat({ messages }: TutorChatProps) {
         >
           <div className={`max-w-[85%] ${
             m.role === 'assistant' 
-              ? 'bg-gradient-to-br from-purple-600/20 to-blue-600/20 border border-purple-500/30' 
+              ? 'bg-[#7c3aed]/10 border border-[#7c3aed]/30' 
               : 'bg-white/5 border border-white/10'
           } rounded-2xl px-4 py-3 backdrop-blur-sm`}>
             {m.role === 'assistant' && (
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">
+                <div className="w-5 h-5 rounded-full bg-[#7c3aed] flex items-center justify-center text-[10px] font-bold">
                   AI
                 </div>
-                <span className="text-[10px] font-medium text-purple-300 uppercase tracking-wider">Tutor</span>
+                <span className="text-[10px] font-medium text-[#c4b5fd] uppercase tracking-wider">Tutor</span>
               </div>
             )}
             <div className="text-sm leading-relaxed text-white/90">{m.text}</div>

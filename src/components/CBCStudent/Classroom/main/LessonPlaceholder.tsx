@@ -15,7 +15,7 @@ export default function LessonPlaceholder() {
       </p>
       <Button
         onClick={() => setOpen(true)}
-        className="bg-[#A855F7] hover:bg-[#9333EA] text-white px-6 py-3 rounded-xl font-medium shadow-[0_0_10px_rgba(168,85,247,0.15)]"
+        className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 py-3 rounded-xl font-medium shadow-[0_0_10px_rgba(124,58,237,0.15)]"
       >
         Add Lesson
       </Button>

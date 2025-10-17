@@ -12,8 +12,8 @@ export default function LessonHeader() {
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse"></div>
-            <span className="text-xs font-medium text-purple-400 uppercase tracking-wider">
+            <div className="h-1.5 w-1.5 rounded-full bg-[#7c3aed] animate-pulse"></div>
+            <span className="text-xs font-medium text-[#c4b5fd] uppercase tracking-wider">
               {lesson.grade} • {lesson.subject}
             </span>
           </div>
