@@ -9,7 +9,7 @@ export default function TutorPanel() {
   return (
     <div className="flex flex-col h-full">
       <TutorHeader />
-      <div className="flex-1 overflow-y-auto mt-4 space-y-4">
+      <div className="flex-1 overflow-y-auto scrollbar-hide mt-4 space-y-4 min-h-0">
         <TutorChat />
       </div>
       <TutorInput />

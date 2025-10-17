@@ -9,7 +9,7 @@ export default function LessonContent() {
   if (!lesson) return null;
 
   return (
-    <Card className="rounded-2xl">
+    <Card className="rounded-2xl flex-1 overflow-y-auto scrollbar-hide min-h-0">
       <div className="prose prose-invert max-w-none">
         <h2 className="text-lg font-semibold mb-3">Lesson Content</h2>
         <p className="text-white/80 leading-relaxed">

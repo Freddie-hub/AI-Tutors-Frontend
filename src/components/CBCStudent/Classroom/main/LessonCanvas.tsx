@@ -13,7 +13,7 @@ export default function LessonCanvas() {
   if (!lesson) return <LessonPlaceholder />;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col space-y-6 h-full">
       <LessonHeader />
       <LessonContent />
       <LessonActions />
