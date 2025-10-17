@@ -1,21 +1,44 @@
 "use client";
 
 import React from 'react';
-import Card from '@/components/CBCStudent/shared/Card';
 
-const messages = [
-  { id: 1, role: 'assistant', text: 'Hello! I\'m your AI tutor. How can I help you with Algebra today?' },
-  { id: 2, role: 'user', text: 'Can you explain how to simplify 3x + 2x?' },
-  { id: 3, role: 'assistant', text: 'Sure! Combine like terms: 3x + 2x = 5x. You add the coefficients (3 + 2) and keep x.' },
-];
+interface Message {
+  id: number;
+  role: 'user' | 'assistant';
+  text: string;
+}
 
-export default function TutorChat() {
+interface TutorChatProps {
+  messages: Message[];
+}
+
+export default function TutorChat({ messages }: TutorChatProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {messages.map((m) => (
-        <Card key={m.id} className={`rounded-2xl ${m.role === 'assistant' ? 'bg-[#111113]' : 'bg-[#18181B]'}`}>
-          <div className="text-sm leading-relaxed">{m.text}</div>
-        </Card>
+        <div 
+          key={m.id} 
+          className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+        >
+          <div className={`max-w-[85%] ${
+            m.role === 'assistant' 
+              ? 'bg-gradient-to-br from-purple-600/20 to-blue-600/20 border border-purple-500/30' 
+              : 'bg-white/5 border border-white/10'
+          } rounded-2xl px-4 py-3 backdrop-blur-sm`}>
+            {m.role === 'assistant' && (
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-[10px] font-bold">
+                  AI
+                </div>
+                <span className="text-[10px] font-medium text-purple-300 uppercase tracking-wider">Tutor</span>
+              </div>
+            )}
+            <div className="text-sm leading-relaxed text-white/90">{m.text}</div>
+            <div className="text-[10px] text-white/40 mt-2">
+              {m.role === 'assistant' ? 'Just now' : 'Sent'}
+            </div>
+          </div>
+        </div>
       ))}
     </div>
   );

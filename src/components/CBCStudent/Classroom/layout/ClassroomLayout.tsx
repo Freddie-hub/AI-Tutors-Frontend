@@ -1,61 +1,91 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import LessonCanvas from '../main/LessonCanvas';
 import TutorPanel from '../tutor/TutorPanel';
 import { LessonProvider } from '../context/LessonContext';
+import Button from '@/components/ui/Button';
 
 export default function ClassroomLayout() {
-  const [isContentCollapsed, setIsContentCollapsed] = useState(false);
+  // view: both panels | left only (lesson) | right only (tutor)
+  const [view, setView] = useState<'both' | 'left' | 'right'>('both');
+
+  const leftClasses = useMemo(() => {
+    const base =
+      'transition-all duration-300 ease-in-out relative overflow-hidden min-w-0';
+    const width =
+      view === 'left'
+        ? 'w-full'
+        : view === 'both'
+        ? 'w-[60%]'
+        : 'w-0';
+    const border = view === 'right' ? '' : 'border-r-2 border-purple-500/30';
+    return `${base} ${width} ${border}`;
+  }, [view]);
+
+  const rightClasses = useMemo(() => {
+    const base =
+      'transition-all duration-300 ease-in-out relative overflow-hidden min-w-0 bg-gradient-to-br from-[#111113] to-[#1a1a1f]';
+    const width =
+      view === 'right'
+        ? 'w-full'
+        : view === 'both'
+        ? 'w-[40%]'
+        : 'w-0';
+    return `${base} ${width}`;
+  }, [view]);
 
   return (
     <LessonProvider>
-      <div className="flex h-[70vh] md:h-[72vh] lg:h-[74vh] w-full bg-[#0E0E10] text-white overflow-hidden rounded-2xl shadow-md shadow-black/20 border border-white/10">
-        {/* Left: Lesson Content Area */}
-        <div 
-          className={`transition-all duration-300 ease-in-out border-r-2 border-purple-500/30 relative ${
-            isContentCollapsed ? 'w-0 overflow-hidden' : 'w-[60%]'
-          }`}
-        >
-          {/* Collapse Toggle Button */}
-          <button
-            onClick={() => setIsContentCollapsed(!isContentCollapsed)}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 shadow-lg border-2 border-[#0E0E10] transition-all duration-200"
-            title={isContentCollapsed ? "Expand Content" : "Collapse Content"}
+      <div className="relative flex flex-col h-[85vh] md:h-[87vh] lg:h-[90vh] w-full bg-[#0E0E10] text-white overflow-hidden rounded-2xl shadow-md shadow-black/20 border border-white/10">
+        {/* Top controls bar (prevents overlapping content) */}
+        <div className="flex items-center justify-center gap-2 p-2 border-b border-white/10 bg-[#0E0E10]">
+          <Button
+            className={`px-3 py-1 text-xs border border-white/10 ${view === 'left' ? 'bg-purple-600 hover:bg-purple-600' : 'bg-white/10 hover:bg-white/20'} `}
+            onClick={() => setView('left')}
+            aria-label="Show main content only"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className={`h-5 w-5 transition-transform duration-300 ${isContentCollapsed ? 'rotate-180' : ''}`}
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          <div className="h-full p-6 overflow-y-auto scrollbar-hide bg-gradient-to-br from-[#0E0E10] to-[#1a1a1c]">
-            <LessonCanvas />
-          </div>
+            Main Only
+          </Button>
+          <Button
+            className={`px-3 py-1 text-xs border border-white/10 ${view === 'both' ? 'bg-purple-600 hover:bg-purple-600' : 'bg-white/10 hover:bg-white/20'} `}
+            onClick={() => setView('both')}
+            aria-label="Show split view"
+          >
+            Split View
+          </Button>
+          <Button
+            className={`px-3 py-1 text-xs border border-white/10 ${view === 'right' ? 'bg-purple-600 hover:bg-purple-600' : 'bg-white/10 hover:bg-white/20'} `}
+            onClick={() => setView('right')}
+            aria-label="Show tutor only"
+          >
+            Tutor Only
+          </Button>
         </div>
 
-        {/* Right: AI Tutor Panel */}
-        <div 
-          className={`transition-all duration-300 ease-in-out bg-gradient-to-br from-[#111113] to-[#1a1a1f] relative ${
-            isContentCollapsed ? 'w-full' : 'w-[40%]'
-          }`}
-        >
-          {/* Visual Separator Bar */}
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 via-blue-500 to-purple-500 opacity-50"></div>
-          
-          {/* AI Agent Badge */}
-          <div className="absolute top-4 left-4 bg-purple-600/20 border border-purple-500/50 rounded-full px-4 py-1.5 flex items-center gap-2 z-10">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-            <span className="text-xs font-medium text-purple-300">AI Tutor Active</span>
+        {/* Content row */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left: Lesson Content Area */}
+          <div className={leftClasses}>
+            <div className="h-full p-6 overflow-y-auto scrollbar-hide bg-gradient-to-br from-[#0E0E10] to-[#1a1a1c]">
+              {/* Hide content visually when fully collapsed to avoid focus traps */}
+              <div className={view === 'right' ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}>
+                <LessonCanvas />
+              </div>
+            </div>
           </div>
 
-          <div className="h-full p-6 pt-16 overflow-y-auto scrollbar-hide">
-            <TutorPanel />
+          {/* Right: AI Tutor Panel */}
+          <div className={rightClasses}>
+            {/* Visual Separator Bar (only when tutor visible and not full-width left only) */}
+            {view !== 'right' && view !== 'left' && (
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 via-blue-500 to-purple-500 opacity-50"></div>
+            )}
+            <div className="h-full p-6 overflow-y-auto scrollbar-hide">
+              <div className={view === 'left' ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}>
+                <TutorPanel />
+              </div>
+            </div>
           </div>
         </div>
       </div>
