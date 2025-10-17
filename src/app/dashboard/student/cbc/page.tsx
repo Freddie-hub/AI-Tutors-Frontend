@@ -6,6 +6,7 @@ import LearningOverviewCard from '@/components/CBCStudent/dashboard/LearningOver
 import ProgressSummary from '@/components/CBCStudent/dashboard/ProgressSummary';
 import UpcomingLessons from '@/components/CBCStudent/dashboard/UpcomingLessons';
 import { useAuthUser } from '@/lib/hooks';
+import { formatDateParts } from '@/lib/date';
 
 export default function Page() {
     // Allow student-type roles only; must be onboarded
@@ -13,12 +14,7 @@ export default function Page() {
     const { user, profile } = useAuthUser();
     const displayName = profile?.displayName || user?.displayName || 'Student';
     const today = new Date();
-    const formattedDate = today.toLocaleDateString('en-GB', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    });
+    const { weekday, dateText } = formatDateParts(today);
 
     return (
         <DashboardLayout active="Dashboard">
@@ -29,8 +25,8 @@ export default function Page() {
                     <span className="text-white/95 text-base font-semibold leading-none">{displayName}</span>
                 </div>
                 <div className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-[#0b0f12] border border-white/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                    <span className="text-white/90 text-base font-medium leading-none">{formattedDate.split(',')[0]},</span>
-                    <span className="text-[#9aa6b2] text-sm leading-none">{formattedDate.split(',').slice(1).join(', ').trim()}</span>
+                    <span className="text-white/90 text-base font-medium leading-none">{weekday}</span>
+                    <span className="text-[#9aa6b2] text-sm leading-none">{dateText}</span>
                 </div>
             </div>
 

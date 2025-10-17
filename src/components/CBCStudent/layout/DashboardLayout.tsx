@@ -8,12 +8,6 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children, active }: DashboardLayoutProps) {
-  const today = new Date();
-  const formattedDate = today.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-[#0a0f14] via-[#0b1113] to-[#0a0f14]">
       {/* Sidebar */}

@@ -8,12 +8,6 @@ export default function TopBar() {
   const { user, profile } = useAuthUser();
 
   const displayName = profile?.displayName || user?.displayName || 'Student';
-  const today = new Date();
-  const formattedDate = today.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 0);
