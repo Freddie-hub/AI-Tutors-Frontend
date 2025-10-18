@@ -778,11 +778,8 @@ export default function LessonFormModal({ open, onClose }: Props) {
     [CURRICULUM, grade, subject]
   );
   const [topic, setTopic] = useState<string>('');
-  const subtopicOptions = useMemo(
-    () => (topic ? (CURRICULUM[grade]?.[subject]?.[topic] ?? []) : []),
-    [CURRICULUM, grade, subject, topic]
-  );
-  const [subtopic, setSubtopic] = useState<string>('');
+  // specification free text instead of subtopic
+  const [specification, setSpecification] = useState<string>('');
 
   // Ensure defaults are valid and cascade resets
   useEffect(() => {
@@ -804,16 +801,7 @@ export default function LessonFormModal({ open, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject, topicOptions.length]);
 
-  useEffect(() => {
-    if (subtopicOptions.length === 0) {
-      if (subtopic !== '') setSubtopic('');
-      return;
-    }
-    if (!subtopicOptions.includes(subtopic)) {
-      setSubtopic(subtopicOptions[0] || '');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic, subtopicOptions.length]);
+  // No subtopic cascading required
 
   if (!open) return null;
 
@@ -823,7 +811,7 @@ export default function LessonFormModal({ open, onClose }: Props) {
       grade,
       subject,
       topic,
-      subtopic,
+      specification,
       content:
         'Generated lesson content will appear here based on your selections. You can interact with the AI tutor to get guidance.',
     });
@@ -890,23 +878,13 @@ export default function LessonFormModal({ open, onClose }: Props) {
           </div>
 
           <div>
-            <label className="block text-sm text-white/70 mb-1">Subtopic</label>
-            <select
-              className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
-              value={subtopic}
-              onChange={(e) => setSubtopic(e.target.value)}
-              disabled={subtopicOptions.length === 0}
-            >
-              {subtopicOptions.length === 0 ? (
-                <option value="">No subtopics</option>
-              ) : (
-                subtopicOptions.map((st: string) => (
-                  <option key={st} value={st}>
-                    {st}
-                  </option>
-                ))
-              )}
-            </select>
+            <label className="block text-sm text-white/70 mb-1">Specification</label>
+            <textarea
+              className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2 min-h-24 resize-y"
+              placeholder="Describe specifics: focus area, level, goals, constraints (e.g., exam board, duration)."
+              value={specification}
+              onChange={(e) => setSpecification(e.target.value)}
+            />
           </div>
         </div>
 

@@ -7,7 +7,7 @@ type Lesson = {
   grade: string;
   subject: string;
   topic: string;
-  subtopic?: string;
+  specification?: string;
   content?: string;
 } | null;
 

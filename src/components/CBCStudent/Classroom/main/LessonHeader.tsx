@@ -18,8 +18,8 @@ export default function LessonHeader() {
             </span>
           </div>
           <h1 className="text-2xl font-bold text-white mb-1 tracking-tight">{lesson.topic}</h1>
-          {lesson.subtopic && (
-            <p className="text-white/60 text-sm">{lesson.subtopic}</p>
+          {lesson.specification && (
+            <p className="text-white/60 text-sm">{lesson.specification}</p>
           )}
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">

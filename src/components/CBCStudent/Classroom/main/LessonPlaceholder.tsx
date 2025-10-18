@@ -11,7 +11,7 @@ export default function LessonPlaceholder() {
     <div className="flex flex-col items-center justify-center h-[calc(100vh-96px)] text-center">
       <h2 className="text-2xl font-semibold mb-3">Welcome to Your Classroom</h2>
       <p className="text-white/60 max-w-md mb-6">
-        Start learning by adding your first lesson. Choose your grade, topic, and subtopic to generate your personalized content.
+        Start learning by adding your first lesson. Choose your grade, subject, topic, and add a specification to tailor your content.
       </p>
       <Button
         onClick={() => setOpen(true)}
