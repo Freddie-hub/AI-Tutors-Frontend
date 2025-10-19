@@ -183,8 +183,9 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
     }
   }, [planId, options]);
   
-  const splitWorkload = useCallback(async (totalTokens?: number) => {
-    if (!lessonId) throw new Error('No lesson to split');
+  const splitWorkload = useCallback(async (totalTokens?: number, specificLessonId?: string) => {
+    const targetLessonId = specificLessonId || lessonId;
+    if (!targetLessonId) throw new Error('No lesson to split');
     
     try {
       setStatus('splitting');
@@ -192,7 +193,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       setCurrentAgent('splitter');
       
       const token = await getAuthToken();
-      const response = await fetch(`/api/tutor/lesson/${lessonId}/split`, {
+      const response = await fetch(`/api/tutor/lesson/${targetLessonId}/split`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -219,8 +220,9 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
     }
   }, [lessonId, options]);
   
-  const startGeneration = useCallback(async () => {
-    if (!lessonId) throw new Error('No lesson to generate');
+  const startGeneration = useCallback(async (specificLessonId?: string) => {
+    const targetLessonId = specificLessonId || lessonId;
+    if (!targetLessonId) throw new Error('No lesson to generate');
     
     try {
       setStatus('generating');
@@ -235,7 +237,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       }
       
       // Trigger first run call
-      const initialResponse = await fetch(`/api/tutor/lesson/${lessonId}/run`, {
+      const initialResponse = await fetch(`/api/tutor/lesson/${targetLessonId}/run`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -262,7 +264,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       
       // Set up SSE for progress
       const eventSource = new EventSource(
-        `/api/tutor/lesson/${lessonId}/progress?runId=${initialData.runId}&token=${encodeURIComponent(token)}`
+        `/api/tutor/lesson/${targetLessonId}/progress?runId=${initialData.runId}&token=${encodeURIComponent(token)}`
       );
       
       eventSourceRef.current = eventSource;
@@ -318,7 +320,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       let currentRunId = initialData.runId;
       generationIntervalRef.current = setInterval(async () => {
         try {
-          const continueResponse = await fetch(`/api/tutor/lesson/${lessonId}/run`, {
+          const continueResponse = await fetch(`/api/tutor/lesson/${targetLessonId}/run`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -327,8 +329,35 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
             body: JSON.stringify({ resume: true, runId: currentRunId }),
           });
           
+          // Handle 409 Conflict (already processing) - this is expected
+          if (continueResponse.status === 409) {
+            console.log('[polling] Run already in progress, waiting...');
+            return;
+          }
+          
           if (!continueResponse.ok) {
-            console.error('Continue generation failed');
+            const errorData = await continueResponse.json().catch(() => ({ message: 'Unknown error' }));
+            
+            // 401 means auth token expired - this is a real error
+            if (continueResponse.status === 401) {
+              console.error('[polling] Authentication expired');
+              setError('Session expired. Please refresh the page.');
+              setStatus('error');
+              if (generationIntervalRef.current) {
+                clearInterval(generationIntervalRef.current);
+              }
+              if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+              }
+              options.onError?.('Session expired');
+              return;
+            }
+            
+            console.warn('[polling] Non-success response (will retry):', {
+              status: continueResponse.status,
+              message: errorData.message,
+            });
+            // Don't treat other errors as fatal - polling will retry
             return;
           }
           
@@ -349,7 +378,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
         } catch (err) {
           console.error('Polling error:', err);
         }
-      }, 3000);
+      }, 5000); // Increased from 3s to 5s to reduce pressure
       
     } catch (err: any) {
       setError(err.message);

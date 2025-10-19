@@ -875,30 +875,43 @@ export default function LessonFormModal({ open, onClose }: Props) {
 
   const handleAcceptAndGenerate = async () => {
     try {
+      let newLessonId: string | undefined;
+      
       // If user edited the TOC, send that to the new accept endpoint
       if (editableTOC && editableTOC.length > 0) {
         const token = await (await import('@/lib/firebase')).auth.currentUser?.getIdToken();
-        await fetch('/api/tutor/plan/toc/accept', {
+        const response = await fetch('/api/tutor/plan/toc/accept', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ grade, subject, topic, specification, toc: editableTOC }),
-        }).then(async (r) => {
-          if (!r.ok) throw new Error((await r.json()).message || 'Accept failed');
-          return r.json();
-        }).then((res) => {
-          if (res.lessonId) {
-            adoptLesson(res.lessonId);
-          }
         });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Accept failed');
+        }
+        
+        const res = await response.json();
+        newLessonId = res.lessonId;
+        if (newLessonId) {
+          adoptLesson(newLessonId);
+        }
       } else {
-        await acceptTOC();
+        newLessonId = await acceptTOC();
       }
-      await splitWorkload(totalTokens);
-      await startGeneration();
+      
+      if (!newLessonId) {
+        throw new Error('Failed to create lesson');
+      }
+      
+      // Now proceed with split and generation using the new lessonId directly
+      await splitWorkload(totalTokens, newLessonId);
+      await startGeneration(newLessonId);
     } catch (e) {
+      console.error('Accept and generate error:', e);
       // noop, error shown below
     }
   };

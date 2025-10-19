@@ -193,6 +193,8 @@ export interface LessonRun {
   startedAt: number;
   completedAt?: number;
   cancelled?: boolean;
+  processing?: boolean; // Lock to prevent concurrent execution
+  processingSubtaskId?: string; // Currently processing subtask
   metrics?: {
     tokensUsed: number;
     estimatedCost: number;

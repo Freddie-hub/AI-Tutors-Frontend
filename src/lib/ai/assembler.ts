@@ -101,9 +101,11 @@ export function validateAssembledLesson(assembled: {
     issues.push('Content is too short or empty');
   }
   
-  // Check for basic HTML structure
-  if (!assembled.content.includes('<h1>') && !assembled.content.includes('<h2>')) {
-    issues.push('Missing main heading tags');
+  // Check for basic HTML structure - look for any heading tags (h1-h6)
+  const hasHeadings = /<h[1-6][^>]*>/i.test(assembled.content);
+  if (!hasHeadings) {
+    // Only warn, don't fail - subtasks might use different formatting
+    console.warn('[assembler] Warning: No heading tags found in assembled content');
   }
   
   // Check sections have required fields

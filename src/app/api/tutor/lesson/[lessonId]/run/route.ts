@@ -9,6 +9,7 @@ import {
   updateRunStatus,
   addProgressEvent,
   setLessonFinal,
+  setRunProcessing,
 } from '@/lib/lessonStore';
 import { assembleLesson, validateAssembledLesson } from '@/lib/ai/assembler';
 
@@ -50,6 +51,25 @@ export async function POST(
       if (!run) {
         return new Response(JSON.stringify({ message: 'Run not found' }), { status: 404 });
       }
+      
+      // Check if already processing - prevent concurrent execution
+      if (run.processing) {
+        console.log('[lesson/run] Run already processing, skipping:', {
+          lessonId,
+          runId: existingRunId,
+          processingSubtaskId: run.processingSubtaskId,
+        });
+        return new Response(
+          JSON.stringify({
+            message: 'Run already in progress',
+            runId: existingRunId,
+            status: run.status,
+            processingSubtaskId: run.processingSubtaskId,
+          }),
+          { status: 409 }
+        );
+      }
+      
       runId = existingRunId;
     } else {
       // Create new run
@@ -75,41 +95,77 @@ export async function POST(
     
     if (!nextSubtask) {
       // All subtasks completed, assemble
-  await updateRunStatus(lessonId, runId, 'assembling');
-  await addProgressEvent(lessonId, runId, { type: 'assembled', agent: 'assembler' });
+      console.log('[lesson/run] Starting assembly:', { lessonId, runId, subtaskCount: subtasks.length });
       
-      const assembled = assembleLesson(subtasks);
-      const validation = validateAssembledLesson(assembled);
-      
-      if (!validation.valid) {
-        await updateRunStatus(lessonId, runId, 'failed');
+      try {
+        await setRunProcessing(lessonId, runId, true, 'assembly');
+        await updateRunStatus(lessonId, runId, 'assembling');
+        await addProgressEvent(lessonId, runId, { type: 'assembled', agent: 'assembler' });
+        
+        console.log('[lesson/run] Assembling lesson from subtasks...');
+        const assembled = assembleLesson(subtasks);
+        
+        console.log('[lesson/run] Validating assembled lesson...');
+        const validation = validateAssembledLesson(assembled);
+        
+        if (!validation.valid) {
+          console.error('[lesson/run] Assembly validation failed:', validation.issues);
+          await setRunProcessing(lessonId, runId, false);
+          await updateRunStatus(lessonId, runId, 'failed');
+          return new Response(
+            JSON.stringify({
+              message: 'Assembly validation failed',
+              issues: validation.issues,
+            }),
+            { status: 500 }
+          );
+        }
+        
+        console.log('[lesson/run] Saving final lesson...');
+        await setLessonFinal(lessonId, assembled);
+        await updateRunStatus(lessonId, runId, 'completed');
+        await addProgressEvent(lessonId, runId, { type: 'completed', agent: 'assembler' });
+        
+        console.log('[lesson/run] Lesson generation completed successfully!');
         return new Response(
           JSON.stringify({
-            message: 'Assembly validation failed',
-            issues: validation.issues,
+            runId,
+            status: 'completed',
+            message: 'Lesson generation complete',
+            final: assembled,
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      } catch (assemblyError: unknown) {
+        const err = assemblyError as Error;
+        console.error('[lesson/run] Assembly error:', {
+          error: err.message,
+          stack: err.stack,
+        });
+        await setRunProcessing(lessonId, runId, false);
+        await updateRunStatus(lessonId, runId, 'failed');
+        await addProgressEvent(lessonId, runId, {
+          type: 'error',
+          data: { error: `Assembly failed: ${err.message}` },
+          agent: 'assembler',
+        });
+        return new Response(
+          JSON.stringify({
+            message: 'Assembly failed',
+            error: err.message,
+            details: err.stack,
           }),
           { status: 500 }
         );
       }
-      
-  await setLessonFinal(lessonId, assembled);
-  await updateRunStatus(lessonId, runId, 'completed');
-  await addProgressEvent(lessonId, runId, { type: 'completed', agent: 'assembler' });
-      
-      return new Response(
-        JSON.stringify({
-          runId,
-          status: 'completed',
-          message: 'Lesson generation complete',
-          final: assembled,
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
     }
     
+    // Set processing lock before starting subtask
+    await setRunProcessing(lessonId, runId, true, nextSubtask.subtaskId);
+
     // Announce next subtask start (writer agent)
     await addProgressEvent(lessonId, runId, {
       type: 'subtask_started',
@@ -129,6 +185,7 @@ export async function POST(
     
     if (!authHeader) {
       console.error('[lesson/run] Missing authorization header');
+      await setRunProcessing(lessonId, runId, false);
       throw new Error('Missing authorization header for internal API call');
     }
     
@@ -167,6 +224,7 @@ export async function POST(
       }
       
       await updateRunStatus(lessonId, runId, 'writing', nextSubtask.order);
+      await setRunProcessing(lessonId, runId, false); // Release lock after successful completion
       await addProgressEvent(lessonId, runId, {
         type: 'subtask_complete',
         data: {
@@ -177,39 +235,20 @@ export async function POST(
         agent: 'writer',
       });
       
-      // Check if there are more subtasks
-      const remainingSubtasks = subtasks.filter(
-        (st) => st.order > nextSubtask.order && (st.status === 'queued' || st.status === 'failed')
+      // Return success - frontend polling will trigger next subtask
+      return new Response(
+        JSON.stringify({
+          runId,
+          status: 'writing',
+          currentSubtaskOrder: nextSubtask.order,
+          totalSubtasks: subtasks.length,
+          message: `Completed subtask ${nextSubtask.order}/${subtasks.length}`,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
       );
-      
-      if (remainingSubtasks.length > 0) {
-        // More subtasks to process - return progress
-        return new Response(
-          JSON.stringify({
-            runId,
-            status: 'writing',
-            currentSubtaskOrder: nextSubtask.order,
-            totalSubtasks: subtasks.length,
-            message: `Completed subtask ${nextSubtask.order}/${subtasks.length}. Call /run again to continue.`,
-          }),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-      } else {
-        // Last subtask completed - trigger assembly by calling self recursively
-        const continueResponse = await fetch(req.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: authHeader || '',
-          },
-          body: JSON.stringify({ resume: true, runId }),
-        });
-        
-        return continueResponse;
-      }
     } catch (subtaskError: unknown) {
       const err = subtaskError as Error;
       console.error('[lesson/run] Subtask execution failed:', {
@@ -219,6 +258,7 @@ export async function POST(
         stack: err.stack,
       });
       
+      await setRunProcessing(lessonId, runId, false); // Release lock on error
       await updateRunStatus(lessonId, runId, 'failed');
       await addProgressEvent(lessonId, runId, {
         type: 'error',

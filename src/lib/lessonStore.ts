@@ -253,7 +253,27 @@ export async function updateRunStatus(
   }
   if (status === 'completed' || status === 'failed' || status === 'cancelled') {
     updates.completedAt = Date.now();
+    updates.processing = false; // Release lock
+    updates.processingSubtaskId = undefined;
   }
+  await adminDb
+    .collection('lessons')
+    .doc(lessonId)
+    .collection('runs')
+    .doc(runId)
+    .update(updates);
+}
+
+export async function setRunProcessing(
+  lessonId: string,
+  runId: string,
+  processing: boolean,
+  subtaskId?: string
+): Promise<void> {
+  const updates: Partial<LessonRun> = {
+    processing,
+    processingSubtaskId: subtaskId,
+  };
   await adminDb
     .collection('lessons')
     .doc(lessonId)
