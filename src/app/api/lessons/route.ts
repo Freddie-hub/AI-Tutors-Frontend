@@ -18,14 +18,39 @@ export async function GET(req: NextRequest) {
 
     // Query user's lessons from Firestore
     const lessonsRef = adminDb.collection('lessons');
-    const query = lessonsRef.where('userId', '==', uid).orderBy('createdAt', 'desc');
-    const snapshot = await query.get();
-
-    const lessons = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
-    }));
+    let lessons: any[] = [];
+    try {
+      // Preferred query (requires composite index on userId + createdAt desc)
+      const snapshot = await lessonsRef
+        .where('userId', '==', uid)
+        .orderBy('createdAt', 'desc')
+        .get();
+      lessons = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
+      }));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // If index is missing, fall back to un-ordered query and sort in memory
+      if (msg.includes('FAILED_PRECONDITION') || msg.toLowerCase().includes('requires an index')) {
+        const fallbackSnap = await lessonsRef.where('userId', '==', uid).get();
+        lessons = fallbackSnap.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
+          }))
+          .sort((a, b) => {
+            const at = a.createdAt ? Date.parse(a.createdAt) : 0;
+            const bt = b.createdAt ? Date.parse(b.createdAt) : 0;
+            return bt - at; // desc
+          });
+        // Include hint header for observability
+        return NextResponse.json({ lessons, hint: 'Create Firestore composite index on (userId asc, createdAt desc) to enable server-side ordering.' }, { status: 200 });
+      }
+      throw err;
+    }
 
     return NextResponse.json({ lessons }, { status: 200 });
   } catch (error: unknown) {

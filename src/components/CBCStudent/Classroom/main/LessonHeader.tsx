@@ -3,7 +3,11 @@
 import React from 'react';
 import { useLesson } from '../context/LessonContext';
 
-export default function LessonHeader() {
+type Props = {
+  onCreateNewLesson?: () => void;
+};
+
+export default function LessonHeader({ onCreateNewLesson }: Props) {
   const { lesson } = useLesson();
   if (!lesson) return null;
 
@@ -22,9 +26,25 @@ export default function LessonHeader() {
             <p className="text-white/60 text-sm">{lesson.specification}</p>
           )}
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-          <div className="h-2 w-2 rounded-full bg-emerald-400"></div>
-          <span className="text-emerald-400 text-xs font-semibold">Active</span>
+        <div className="flex items-center gap-3">
+          {/* Plus icon only, no surrounding styles */}
+          <button
+            type="button"
+            onClick={onCreateNewLesson}
+            aria-label="new lesson"
+            title="new lesson"
+            className="p-0 text-white hover:text-[#c4b5fd] transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+
+          {/* Status pill */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+            <div className="h-2 w-2 rounded-full bg-emerald-400"></div>
+            <span className="text-emerald-400 text-xs font-semibold">Active</span>
+          </div>
         </div>
       </div>
     </div>
