@@ -118,7 +118,7 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       }, 1000);
     };
 
-    // Rule 1: Unauthenticated users must go to /auth (except public routes)
+    // Unauthenticated users must go to /auth (except public routes)
     if (!isAuthenticated) {
       if (!isPublicRoute && pathname !== '/auth') {
         performRedirect('/auth', 'User not authenticated');
@@ -126,7 +126,7 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       return;
     }
 
-    // Rule 1.1: If user has a role and navigates to choose-role, redirect them appropriately
+    // If user has a role and navigates to choose-role, redirect them appropriately
     if (isAuthenticated && pathname === '/onboarding/choose-role') {
       if (currentRole) {
         if (!isOnboarded) {
@@ -142,7 +142,7 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       }
     }
 
-    // Rule 2: Authenticated users on /auth should be redirected away
+    // Authenticated users on /auth should be redirected away
     if (redirectIfAuthenticated && pathname === '/auth' && isAuthenticated) {
       if (!profile || !currentRole) {
         performRedirect('/onboarding/choose-role', 'No user profile or role');
@@ -164,7 +164,7 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       return;
     }
 
-    // Rule 3: Authenticated users without profile/role must choose role
+    // Authenticated users without profile/role must choose role
     if (isAuthenticated && (!profile || !currentRole)) {
       if (pathname !== '/onboarding/choose-role') {
         performRedirect('/onboarding/choose-role', 'Role not selected yet');
@@ -172,7 +172,7 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       return;
     }
 
-    // Rule 4: Users with role but not onboarded must complete onboarding
+    // Users with role but not onboarded must complete onboarding
     if (isAuthenticated && profile && currentRole && !isOnboarded) {
       const expectedOnboarding = ROLE_ONBOARDING_ROUTE[currentRole];
       
@@ -194,7 +194,7 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       }
     }
 
-    // Rule 5: Role-based access control for protected routes
+    // Role-based access control for protected routes
     if (isAuthenticated && profile && isOnboarded && allowedRoles.length > 0) {
       if (currentRole && !allowedRoles.includes(currentRole)) {
         const dashboardRoute = ROLE_ROUTES[currentRole as keyof typeof ROLE_ROUTES];
@@ -207,7 +207,7 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       }
     }
 
-    // Rule 6: Onboarded users accessing onboarding routes
+    // Onboarded users accessing onboarding routes
     // Redirect away from onboarding routes once onboarded
     if (isAuthenticated && profile && isOnboarded && isOnboardingRoute) {
       // Redirect away from all onboarding routes (including choose-role)
