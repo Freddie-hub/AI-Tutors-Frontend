@@ -22,6 +22,8 @@ type LessonContextType = {
   loadLesson: (lesson: Lesson) => void;
   loadSavedLessons: () => Promise<void>;
   isLoading: boolean;
+  isGenerating: boolean;
+  setIsGenerating: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const LessonContext = createContext<LessonContextType | null>(null);
@@ -30,6 +32,7 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
   const [lesson, setLesson] = useState<Lesson>(null);
   const [savedLessons, setSavedLessons] = useState<Lesson[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const { user } = useAuth();
 
   // Load saved lessons when user is available
@@ -100,7 +103,9 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
         saveLesson, 
         loadLesson,
         loadSavedLessons,
-        isLoading 
+        isLoading,
+        isGenerating,
+        setIsGenerating,
       }}
     >
       {children}

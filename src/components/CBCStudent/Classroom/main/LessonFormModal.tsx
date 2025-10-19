@@ -13,7 +13,7 @@ type Props = {
 };
 
 export default function LessonFormModal({ open, onClose }: Props) {
-  const { setLesson } = useLesson();
+  const { setLesson, setIsGenerating } = useLesson();
   const { user } = useAuth();
   // Hardcoded curriculum (grades -> subjects -> topics -> subtopics names only)
   const CURRICULUM = useMemo(() => ({
@@ -810,6 +810,9 @@ export default function LessonFormModal({ open, onClose }: Props) {
 
   const createLesson = async () => {
     try {
+      // show blank main section and working state
+      setIsGenerating(true);
+      setLesson(null);
       const token = await user?.getIdToken();
       const res = await generateLesson({ grade, subject, topic, specification }, token || undefined);
       setLesson({
@@ -832,6 +835,8 @@ export default function LessonFormModal({ open, onClose }: Props) {
         content: 'We had trouble generating a lesson right now. Try again shortly.',
       });
       onClose();
+    } finally {
+      setIsGenerating(false);
     }
   };
 

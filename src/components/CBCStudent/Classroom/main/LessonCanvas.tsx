@@ -7,10 +7,15 @@ import LessonHeader from './LessonHeader';
 import LessonContent from './LessonContent';
 import LessonActions from './LessonActions';
 import LessonFormModal from './LessonFormModal';
+import AgentWorking from './AgentWorking';
 
 export default function LessonCanvas() {
-  const { lesson } = useLesson();
+  const { lesson, isGenerating } = useLesson();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  if (isGenerating) {
+    return <AgentWorking />;
+  }
 
   if (!lesson) return <LessonPlaceholder />;
 
