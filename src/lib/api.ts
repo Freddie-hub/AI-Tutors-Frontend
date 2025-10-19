@@ -4,6 +4,8 @@ import { authService } from '@/lib/auth';
 import { auth } from '@/lib/firebase';
 import type {
   ApiResponse,
+  // New types used by tutor endpoints
+  // Using inline types here to avoid importing server-only modules
   IndividualStudentOnboardingData,
   Institution,
   InstitutionAdminOnboardingData,
@@ -13,6 +15,44 @@ import type {
   UserProfile,
   UserRole,
 } from './types';
+
+// Light client-side contracts for tutor endpoints
+export type ClientLessonRequest = {
+  grade: string;
+  subject: string;
+  topic: string;
+  specification?: string;
+};
+
+export type ClientLessonResponse = {
+  lessonId: string;
+  grade: string;
+  subject: string;
+  topic: string;
+  specification?: string;
+  outline: string[];
+  sections: Array<{ id: string; title: string; html: string; quizAnchorId?: string }>;
+  content: string;
+};
+
+export type ClientQuizQuestion = {
+  id: string;
+  type: 'mcq' | 'short';
+  prompt: string;
+  choices?: string[];
+};
+
+export type ClientQuiz = {
+  id: string;
+  topic: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  questions: ClientQuizQuestion[];
+};
+
+export type ClientGradeResult = {
+  score: number;
+  perQuestion: Array<{ questionId: string; correct: boolean; feedback?: string }>;
+};
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
 
@@ -206,4 +246,75 @@ export const fetchProfile = async (uid: string, token?: string): Promise<UserPro
 
 export const fetchInstitution = async (id: string, token?: string): Promise<Institution> => {
   return requestWithToken<Institution>(`/institution/${encodeURIComponent(id)}`, 'GET', token);
+};
+
+// =============================
+// Tutor endpoints (AI Agent)
+// =============================
+
+export const generateLesson = async (
+  payload: ClientLessonRequest,
+  token?: string,
+): Promise<ClientLessonResponse> => {
+  return requestWithToken<ClientLessonResponse>('/tutor/lesson', 'POST', token, payload);
+};
+
+export const tutorChat = async (
+  message: string,
+  lessonContext?: Partial<ClientLessonResponse>,
+  token?: string,
+): Promise<{ reply: string }> => {
+  return requestWithToken<{ reply: string }>('/tutor/chat', 'POST', token, { message, lessonContext });
+};
+
+export const createQuiz = async (
+  topic: string,
+  lessonContent?: string,
+  options?: { difficulty?: 'easy' | 'medium' | 'hard'; count?: number },
+  token?: string,
+): Promise<ClientQuiz> => {
+  return requestWithToken<ClientQuiz>('/tutor/quiz', 'POST', token, {
+    topic,
+    lessonContent,
+    difficulty: options?.difficulty ?? 'medium',
+    count: options?.count ?? 5,
+  });
+};
+
+export const gradeQuiz = async (
+  quiz: ClientQuiz,
+  responses: Array<{ questionId: string; answer: string | number }>,
+  token?: string,
+): Promise<ClientGradeResult> => {
+  return requestWithToken<ClientGradeResult>('/tutor/grade', 'POST', token, { quiz, responses });
+};
+
+export const searchImages = async (
+  query: string,
+  count = 3,
+  token?: string,
+): Promise<{ candidates: Array<{ url: string; title?: string; source?: string }> }> => {
+  return requestWithToken('/tutor/images/search', 'POST', token, { query, count });
+};
+
+export const generateImage = async (
+  prompt: string,
+  token?: string,
+): Promise<{ image: { url: string } | null }> => {
+  return requestWithToken('/tutor/images/generate', 'POST', token, { prompt });
+};
+
+// =============================
+// Lessons endpoints
+// =============================
+
+export const fetchLessons = async (token?: string): Promise<{ lessons: Array<any> }> => {
+  return requestWithToken<{ lessons: Array<any> }>('/lessons', 'GET', token);
+};
+
+export const saveLessonToServer = async (
+  lesson: { grade: string; subject: string; topic: string; specification?: string; content?: string },
+  token?: string,
+): Promise<{ success: boolean; lesson: any }> => {
+  return requestWithToken<{ success: boolean; lesson: any }>('/lessons', 'POST', token, lesson);
 };

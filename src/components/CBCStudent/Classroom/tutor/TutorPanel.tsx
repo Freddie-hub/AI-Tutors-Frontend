@@ -3,18 +3,34 @@
 import React, { useState } from 'react';
 import TutorChat from '@/components/CBCStudent/Classroom/tutor/TutorChat';
 import TutorInput from '@/components/CBCStudent/Classroom/tutor/TutorInput';
+import { tutorChat } from '@/lib/api';
+import { useAuth } from '@/lib/hooks';
 
 export default function TutorPanel() {
   const [messages, setMessages] = useState<Array<{ id: number; role: 'user' | 'assistant'; text: string }>>([]);
 
-  const handleSendMessage = (text: string) => {
+  const { user } = useAuth();
+
+  const handleSendMessage = async (text: string) => {
     const newMessage = {
       id: Date.now(),
       role: 'user' as const,
       text: text
     };
-    setMessages([...messages, newMessage]);
-    // TODO: Add AI response logic here
+    setMessages((prev) => [...prev, newMessage]);
+    try {
+      const token = await user?.getIdToken();
+      const res = await tutorChat(text, undefined, token || undefined);
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now() + 1, role: 'assistant', text: res.reply },
+      ]);
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now() + 1, role: 'assistant', text: 'Sorry, I had trouble responding. Please try again.' },
+      ]);
+    }
   };
 
   return (

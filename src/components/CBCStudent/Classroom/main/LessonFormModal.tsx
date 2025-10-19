@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Button from '@/components/ui/Button';
 import { useLesson } from '../context/LessonContext';
 import Card from '@/components/CBCStudent/shared/Card';
+import { generateLesson } from '@/lib/api';
+import { useAuth } from '@/lib/hooks';
 
 type Props = {
   open: boolean;
@@ -12,6 +14,7 @@ type Props = {
 
 export default function LessonFormModal({ open, onClose }: Props) {
   const { setLesson } = useLesson();
+  const { user } = useAuth();
   // Hardcoded curriculum (grades -> subjects -> topics -> subtopics names only)
   const CURRICULUM = useMemo(() => ({
     'Grade 1': {
@@ -805,17 +808,31 @@ export default function LessonFormModal({ open, onClose }: Props) {
 
   if (!open) return null;
 
-  const createLesson = () => {
-    setLesson({
-      id: Date.now().toString(),
-      grade,
-      subject,
-      topic,
-      specification,
-      content:
-        'Generated lesson content will appear here based on your selections. You can interact with the AI tutor to get guidance.',
-    });
-    onClose();
+  const createLesson = async () => {
+    try {
+      const token = await user?.getIdToken();
+      const res = await generateLesson({ grade, subject, topic, specification }, token || undefined);
+      setLesson({
+        id: res.lessonId,
+        grade: res.grade,
+        subject: res.subject,
+        topic: res.topic,
+        specification: res.specification,
+        content: res.content,
+      });
+      onClose();
+    } catch (e) {
+      // fallback local lesson
+      setLesson({
+        id: Date.now().toString(),
+        grade,
+        subject,
+        topic,
+        specification,
+        content: 'We had trouble generating a lesson right now. Try again shortly.',
+      });
+      onClose();
+    }
   };
 
   return (

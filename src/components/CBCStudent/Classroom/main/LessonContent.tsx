@@ -28,7 +28,7 @@ export default function LessonContent() {
             <>
               <div className="border-l-2 border-[#7c3aed]/30 pl-4 py-2">
                 <p className="text-white/60 italic">
-                  "Key concepts and explanations will be displayed in an easy-to-read format."
+                  &quot;Key concepts and explanations will be displayed in an easy-to-read format.&quot;
                 </p>
               </div>
               
