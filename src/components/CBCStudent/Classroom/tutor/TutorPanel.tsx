@@ -19,12 +19,22 @@ export default function TutorPanel() {
 
   return (
   <div className="flex flex-col h-full pb-[env(safe-area-inset-bottom)]">
-      {/* Simple header label */}
+      {/* Simple header label with quick actions */}
       <div className="pb-3 border-b border-white/10">
-        <h3 className="text-sm font-medium text-white/70">Your Personal AI Tutor</h3>
-        <a href="#quiz" className="text-xs text-blue-400 hover:text-blue-300 underline mt-1 inline-block">
-          Take a quiz
-        </a>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-white/70">Your Personal AI Tutor</h3>
+          <div className="flex items-center gap-3 text-xs">
+            <a href="#quiz" className="text-blue-400 hover:text-blue-300 underline">
+              Quiz
+            </a>
+            <a href="#practice" className="text-purple-400 hover:text-purple-300 underline">
+              Practice
+            </a>
+            <a href="#summary" className="text-green-400 hover:text-green-300 underline">
+              Summary
+            </a>
+          </div>
+        </div>
       </div>
       
       <div className="flex-1 overflow-y-auto scrollbar-hide mt-4 space-y-4 min-h-0 pr-1">
