@@ -6,6 +6,7 @@ import { useLesson } from '../context/LessonContext';
 import Card from '@/components/CBCStudent/shared/Card';
 import AgentWorking from './AgentWorking';
 import { useLessonGenerator } from '@/hooks/useLessonGenerator';
+import type { PlanResponsePayload } from '@/lib/ai/types';
 
 type Props = {
   open: boolean;
@@ -28,6 +29,7 @@ export default function LessonFormModal({ open, onClose }: Props) {
     startGeneration,
     cancelGeneration,
     replanTOC,
+    adoptLesson,
   } = useLessonGenerator({
     onProgress: (evt) => {
       if (evt.agent) setCtxAgent(evt.agent);
@@ -814,6 +816,7 @@ export default function LessonFormModal({ open, onClose }: Props) {
   const [specification, setSpecification] = useState<string>('');
   const [replanNotes, setReplanNotes] = useState<string>('');
   const [totalTokens, setTotalTokens] = useState<number>(12000);
+  const [editableTOC, setEditableTOC] = useState<PlanResponsePayload['toc'] | null>(null);
 
   // Ensure defaults are valid and cascade resets
   useEffect(() => {
@@ -863,7 +866,8 @@ export default function LessonFormModal({ open, onClose }: Props) {
 
   const handleGenerateTOC = async () => {
     try {
-      await generateTOC({ grade, subject, topic, specification });
+      const data = await generateTOC({ grade, subject, topic, specification });
+      setEditableTOC(data.toc);
     } catch (e) {
       // noop, error shown below
     }
@@ -871,7 +875,27 @@ export default function LessonFormModal({ open, onClose }: Props) {
 
   const handleAcceptAndGenerate = async () => {
     try {
-      await acceptTOC();
+      // If user edited the TOC, send that to the new accept endpoint
+      if (editableTOC && editableTOC.length > 0) {
+        const token = await (await import('@/lib/firebase')).auth.currentUser?.getIdToken();
+        await fetch('/api/tutor/plan/toc/accept', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ grade, subject, topic, specification, toc: editableTOC }),
+        }).then(async (r) => {
+          if (!r.ok) throw new Error((await r.json()).message || 'Accept failed');
+          return r.json();
+        }).then((res) => {
+          if (res.lessonId) {
+            adoptLesson(res.lessonId);
+          }
+        });
+      } else {
+        await acceptTOC();
+      }
       await splitWorkload(totalTokens);
       await startGeneration();
     } catch (e) {
@@ -1012,16 +1036,39 @@ export default function LessonFormModal({ open, onClose }: Props) {
         )}
 
         {/* Step 3: TOC Review */}
-        {toc && status === 'idle' && !final && (
+        {editableTOC && toc && status === 'idle' && !final && (
           <div className="space-y-4">
             <h4 className="text-white font-semibold">Review Table of Contents</h4>
             <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
-              {toc.map((chapter, idx) => (
+              {editableTOC.map((chapter: PlanResponsePayload['toc'][number], idx: number) => (
                 <div key={chapter.chapterId} className="border border-white/10 rounded-lg p-3">
-                  <p className="font-medium text-white">Chapter {idx + 1}: {chapter.title}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/80 text-sm">Chapter {idx + 1}:</span>
+                    <input
+                      className="flex-1 bg-[#0E0E10] border border-white/10 rounded px-2 py-1 text-white text-sm"
+                      value={chapter.title}
+                      onChange={(e) => {
+                        const next = [...editableTOC];
+                        next[idx] = { ...chapter, title: e.target.value };
+                        setEditableTOC(next);
+                      }}
+                    />
+                  </div>
                   <ul className="list-disc list-inside text-sm text-white/70 mt-1">
-                    {chapter.subtopics.map((s, i) => (
-                      <li key={i}>{s}</li>
+                    {chapter.subtopics.map((s: string, i: number) => (
+                      <li key={i}>
+                        <input
+                          className="w-full bg-transparent border-b border-white/10 focus:outline-none focus:border-white/20 text-white/80"
+                          value={s}
+                          onChange={(e) => {
+                            const next = [...editableTOC];
+                            const subs = [...chapter.subtopics];
+                            subs[i] = e.target.value;
+                            next[idx] = { ...chapter, subtopics: subs };
+                            setEditableTOC(next);
+                          }}
+                        />
+                      </li>
                     ))}
                   </ul>
                 </div>

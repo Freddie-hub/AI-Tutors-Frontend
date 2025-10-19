@@ -14,9 +14,8 @@ export default function LessonCanvas() {
   const { lesson, generationStatus, currentAgent } = useLesson();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  if (generationStatus === 'planning' || generationStatus === 'accepting' || generationStatus === 'splitting' || generationStatus === 'generating') {
-    return <AgentWorking agent={currentAgent ?? undefined} />;
-  }
+  // Keep the modal visible during planning/accepting/splitting/generating
+  // by not early-returning here. We'll rely on the modal's own status views.
 
   if (!lesson) return <LessonPlaceholder />;
 

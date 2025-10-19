@@ -81,6 +81,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
           topic: params.topic,
           specification: params.specification,
           preferences: params.preferences,
+          persist: false,
         }),
       });
       clearTimeout(timeout);
@@ -90,8 +91,8 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
         throw new Error(errorData.message || 'Failed to generate TOC');
       }
       
-      const data: PlanResponsePayload = await response.json();
-      setPlanId(data.planId);
+  const data: PlanResponsePayload = await response.json();
+  if (data.planId) setPlanId(data.planId as string);
       setToc(data.toc);
       setStatus('idle');
       setCurrentAgent(null);
@@ -133,8 +134,8 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
         throw new Error(errorData.message || 'Failed to replan TOC');
       }
       
-      const data: PlanResponsePayload = await response.json();
-      setPlanId(data.planId);
+  const data: PlanResponsePayload = await response.json();
+  if (data.planId) setPlanId(data.planId);
       setToc(data.toc);
       setStatus('idle');
       
@@ -359,6 +360,14 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       throw err;
     }
   }, [lessonId, options, cleanup]);
+
+  // Allow external adoption of a lesson created outside of planId accept flow
+  const adoptLesson = useCallback((id: string) => {
+    setLessonId(id);
+    // Reset run/progress state for a fresh generation cycle
+    setRunId(null);
+    setProgress({ current: 0, total: 0 });
+  }, []);
   
   const cancelGeneration = useCallback(async () => {
     if (!lessonId || !runId) return;
@@ -419,5 +428,6 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
     startGeneration,
     cancelGeneration,
     generateLesson, // One-shot function
+    adoptLesson,
   };
 }

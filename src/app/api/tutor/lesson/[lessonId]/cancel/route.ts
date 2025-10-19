@@ -4,11 +4,11 @@ import { getLesson, getRun, cancelRun, updateLessonStatus, addProgressEvent } fr
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { lessonId: string } }
+  ctx: { params: Promise<{ lessonId: string }> }
 ) {
   try {
     const user = await requireUser(req);
-    const { lessonId } = params;
+    const { lessonId } = await ctx.params;
     const body = await req.json();
     const { runId } = body;
     

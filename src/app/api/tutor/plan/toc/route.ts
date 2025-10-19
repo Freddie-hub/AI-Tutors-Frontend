@@ -9,8 +9,8 @@ import { createPlan } from '@/lib/lessonStore';
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser(req);
-    const body = (await req.json()) as PlanRequestPayload;
-    const { grade, subject, topic, specification, preferences } = body;
+  const body = (await req.json()) as PlanRequestPayload & { persist?: boolean };
+  const { grade, subject, topic, specification, preferences, persist } = body;
     
     const context = curriculumContext(grade, subject, topic);
     
@@ -59,25 +59,28 @@ export async function POST(req: NextRequest) {
       estimates: PlanResponsePayload['estimates'];
     };
     
-    console.log('[planner] Storing plan in Firestore...');
-    // Store the plan in Firestore
-    const planId = await createPlan({
-      uid: user.uid,
-      grade,
-      subject,
-      topic,
-      specification,
-      toc: parsed.toc,
-      recommendedChapterCount: parsed.recommendedChapterCount,
-      estimates: parsed.estimates,
-      status: 'proposed',
-    });
-    console.log('[planner] Plan stored, returning response');
+    let planId: string | undefined = undefined;
+    if (persist) {
+      console.log('[planner] Storing plan in Firestore...');
+      // Store the plan in Firestore only if requested
+      planId = await createPlan({
+        uid: user.uid,
+        grade,
+        subject,
+        topic,
+        specification,
+        toc: parsed.toc,
+        recommendedChapterCount: parsed.recommendedChapterCount,
+        estimates: parsed.estimates,
+        status: 'proposed',
+      });
+      console.log('[planner] Plan stored, returning response');
+    }
     
-    const response: PlanResponsePayload = {
-      planId,
+    const response: Partial<PlanResponsePayload> & { toc: PlanResponsePayload['toc']; displayToc: PlanResponsePayload['toc']; recommendedChapterCount: number; estimates: PlanResponsePayload['estimates'] } = {
+      ...(planId ? { planId } : {}),
       toc: parsed.toc,
-      displayToc: parsed.toc, // Same for now; hide lengths in UI if needed
+      displayToc: parsed.toc,
       recommendedChapterCount: parsed.recommendedChapterCount,
       estimates: parsed.estimates,
     };

@@ -13,4 +13,15 @@ if (!admin.apps.length) {
 
 export const adminAuth = admin.auth();
 export const adminDb = admin.firestore();
+// Ignore undefined fields in writes to avoid Firestore validation errors
+// This must be set before any Firestore operations are performed.
+try {
+  // settings() is available in the Firestore Admin SDK via @google-cloud/firestore
+  const dbWithSettings = adminDb as unknown as {
+    settings?: (settings: { ignoreUndefinedProperties: boolean }) => void;
+  };
+  dbWithSettings.settings?.({ ignoreUndefinedProperties: true });
+} catch {
+  // No-op: if settings isn't available, we'll rely on callers to avoid undefineds
+}
 export const FieldValue = admin.firestore.FieldValue;

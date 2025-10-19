@@ -135,7 +135,7 @@ export interface PlanRequestPayload {
 }
 
 export interface PlanResponsePayload {
-  planId: string;
+  planId?: string;
   toc: TOCChapter[];
   displayToc: TOCChapter[]; // same as toc, but for clarity
   recommendedChapterCount: number;

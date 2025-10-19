@@ -7,16 +7,16 @@ import { WorkloadSplit, Subtask } from '@/lib/ai/types';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { lessonId: string } }
+  ctx: { params: Promise<{ lessonId: string }> }
 ) {
   try {
     const user = await requireUser(req);
-    const { lessonId } = params;
+    const { lessonId } = await ctx.params;
     const body = await req.json();
     const { totalTokens, maxTokensPerSubtask } = body;
     
     // Get the lesson
-    const lesson = await getLesson(lessonId);
+  const lesson = await getLesson(lessonId);
     if (!lesson) {
       return new Response(JSON.stringify({ message: 'Lesson not found' }), { status: 404 });
     }

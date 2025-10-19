@@ -8,11 +8,11 @@ import { PlanResponsePayload } from '@/lib/ai/types';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { planId: string } }
+  ctx: { params: Promise<{ planId: string }> }
 ) {
   try {
     const user = await requireUser(req);
-    const { planId } = params;
+    const { planId } = await ctx.params;
     const body = await req.json();
     const { constraints, preferences } = body;
     

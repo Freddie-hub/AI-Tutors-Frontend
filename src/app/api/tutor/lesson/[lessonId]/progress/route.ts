@@ -5,11 +5,11 @@ import { adminDb } from '@/lib/firebaseAdmin';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { lessonId: string } }
+  ctx: { params: Promise<{ lessonId: string }> }
 ) {
   try {
     const user = await requireUser(req);
-    const { lessonId } = params;
+    const { lessonId } = await ctx.params;
     const { searchParams } = new URL(req.url);
     const runId = searchParams.get('runId');
     

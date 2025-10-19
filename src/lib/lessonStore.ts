@@ -9,6 +9,13 @@ import {
   LessonSection,
 } from './ai/types';
 
+// Helper to remove any top-level undefined fields from objects before Firestore writes
+function pruneUndefined<T extends Record<string, unknown>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as T;
+}
+
 // ============================
 // Lesson Plans
 // ============================
@@ -16,12 +23,14 @@ import {
 export async function createPlan(plan: Omit<LessonPlan, 'planId' | 'createdAt' | 'updatedAt'>): Promise<string> {
   const planRef = adminDb.collection('lessonPlans').doc();
   const now = Date.now();
-  const planData: LessonPlan = {
+  const planData: LessonPlan = pruneUndefined({
     ...plan,
     planId: planRef.id,
     createdAt: now,
     updatedAt: now,
-  };
+    // Ensure estimates is never undefined to satisfy Firestore validation
+    estimates: plan.estimates ?? { totalTokens: 0, perChapter: [] },
+  });
   
   // Add timeout to Firestore write
   const writePromise = planRef.set(planData);
@@ -57,12 +66,12 @@ export async function createLesson(
 ): Promise<string> {
   const lessonRef = adminDb.collection('lessons').doc();
   const now = Date.now();
-  const lessonData: Lesson = {
+  const lessonData: Lesson = pruneUndefined({
     ...lesson,
     lessonId: lessonRef.id,
     createdAt: now,
     updatedAt: now,
-  };
+  });
   await lessonRef.set(lessonData);
   return lessonRef.id;
 }
