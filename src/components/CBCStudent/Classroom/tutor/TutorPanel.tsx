@@ -22,6 +22,9 @@ export default function TutorPanel() {
       {/* Simple header label */}
       <div className="pb-3 border-b border-white/10">
         <h3 className="text-sm font-medium text-white/70">Your Personal AI Tutor</h3>
+        <a href="#quiz" className="text-xs text-blue-400 hover:text-blue-300 underline mt-1 inline-block">
+          Take a quiz
+        </a>
       </div>
       
       <div className="flex-1 overflow-y-auto scrollbar-hide mt-4 space-y-4 min-h-0 pr-1">
