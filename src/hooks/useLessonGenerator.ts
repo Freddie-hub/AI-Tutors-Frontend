@@ -262,7 +262,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       
       // Set up SSE for progress
       const eventSource = new EventSource(
-        `/api/tutor/lesson/${lessonId}/progress?runId=${initialData.runId}`
+        `/api/tutor/lesson/${lessonId}/progress?runId=${initialData.runId}&token=${encodeURIComponent(token)}`
       );
       
       eventSourceRef.current = eventSource;

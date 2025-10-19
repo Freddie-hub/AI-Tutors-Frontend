@@ -7,8 +7,8 @@ export function getOpenAI() {
   }
   return new OpenAI({ 
     apiKey,
-    timeout: 30000, // 30s timeout on HTTP requests
-    maxRetries: 0,  // No retries to fail fast
+    timeout: 60000, // 60s timeout on HTTP requests
+    maxRetries: 2,  // 2 retries for transient failures
   });
 }
 

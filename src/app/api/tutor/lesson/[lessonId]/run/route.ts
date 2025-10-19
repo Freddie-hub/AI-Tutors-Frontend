@@ -127,19 +127,43 @@ export async function POST(
     
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
     
+    if (!authHeader) {
+      console.error('[lesson/run] Missing authorization header');
+      throw new Error('Missing authorization header for internal API call');
+    }
+    
+    console.log('[lesson/run] Executing subtask:', {
+      lessonId,
+      subtaskId: nextSubtask.subtaskId,
+      order: nextSubtask.order,
+      totalSubtasks: subtasks.length,
+      url: subtaskUrl,
+    });
+    
     try {
       const subtaskResponse = await fetch(subtaskUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: authHeader || '',
+          Authorization: authHeader,
         },
         body: JSON.stringify({}),
       });
       
       if (!subtaskResponse.ok) {
-        const errorData = await subtaskResponse.json();
-        throw new Error(errorData.message || 'Subtask execution failed');
+        const errorText = await subtaskResponse.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        console.error('[lesson/run] Subtask response error:', {
+          status: subtaskResponse.status,
+          statusText: subtaskResponse.statusText,
+          error: errorData,
+        });
+        throw new Error(errorData.message || `Subtask execution failed with status ${subtaskResponse.status}`);
       }
       
       await updateRunStatus(lessonId, runId, 'writing', nextSubtask.order);
@@ -188,10 +212,17 @@ export async function POST(
       }
     } catch (subtaskError: unknown) {
       const err = subtaskError as Error;
+      console.error('[lesson/run] Subtask execution failed:', {
+        lessonId,
+        subtaskId: nextSubtask.subtaskId,
+        error: err.message,
+        stack: err.stack,
+      });
+      
       await updateRunStatus(lessonId, runId, 'failed');
       await addProgressEvent(lessonId, runId, {
         type: 'error',
-        data: { error: err.message },
+        data: { error: `${err.message} - ${err.stack || ''}`.substring(0, 500) },
         agent: 'writer',
       });
       
@@ -199,6 +230,7 @@ export async function POST(
         JSON.stringify({
           message: 'Subtask execution failed',
           error: err.message,
+          details: err.stack,
         }),
         { status: 500 }
       );

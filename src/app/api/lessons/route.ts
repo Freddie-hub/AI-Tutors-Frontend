@@ -16,31 +16,46 @@ export async function GET(req: NextRequest) {
     const decodedToken = await verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
-    // Query user's lessons from Firestore
-    const lessonsRef = adminDb.collection('lessons');
-    let lessons: any[] = [];
+  // Query user's lessons from Firestore
+  const lessonsRef = adminDb.collection('lessons');
+  let lessons: any[] = [];
     try {
       // Preferred query (requires composite index on userId + createdAt desc)
+      // Support both legacy 'userId' and new 'uid' field names
       const snapshot = await lessonsRef
-        .where('userId', '==', uid)
+        .where('uid', '==', uid)
         .orderBy('createdAt', 'desc')
         .get();
-      lessons = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
-      }));
+      lessons = snapshot.docs.map(doc => {
+        const data = doc.data() as any;
+        const createdAt = data.createdAt;
+        const createdIso = createdAt?.toDate?.()?.toISOString?.() || (typeof createdAt === 'number' ? new Date(createdAt).toISOString() : null);
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: createdIso,
+        };
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       // If index is missing, fall back to un-ordered query and sort in memory
       if (msg.includes('FAILED_PRECONDITION') || msg.toLowerCase().includes('requires an index')) {
-        const fallbackSnap = await lessonsRef.where('userId', '==', uid).get();
+        // Try 'uid' then fallback to 'userId'
+        let fallbackSnap = await lessonsRef.where('uid', '==', uid).get();
+        if (fallbackSnap.empty) {
+          fallbackSnap = await lessonsRef.where('userId', '==', uid).get();
+        }
         lessons = fallbackSnap.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
-          }))
+          .map(doc => {
+            const data = doc.data() as any;
+            const createdAt = data.createdAt;
+            const createdIso = createdAt?.toDate?.()?.toISOString?.() || (typeof createdAt === 'number' ? new Date(createdAt).toISOString() : null);
+            return {
+              id: doc.id,
+              ...data,
+              createdAt: createdIso,
+            };
+          })
           .sort((a, b) => {
             const at = a.createdAt ? Date.parse(a.createdAt) : 0;
             const bt = b.createdAt ? Date.parse(b.createdAt) : 0;

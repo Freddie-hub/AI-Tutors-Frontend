@@ -17,6 +17,8 @@ export async function POST(
     const user = await requireUser(req);
     const { lessonId, subtaskId } = await ctx.params;
     
+    console.log('[subtask/run] Starting subtask execution:', { lessonId, subtaskId, uid: user.uid });
+    
     // Get lesson and subtask
     const lesson = await getLesson(lessonId);
     if (!lesson) {
@@ -69,6 +71,14 @@ export async function POST(
     
     const context = curriculumContext(lesson.grade, lesson.subject, lesson.topic);
     
+    console.log('[subtask/run] Calling OpenAI:', {
+      lessonId,
+      subtaskId,
+      model: OPENAI_CHAT_MODEL,
+      subtaskOrder: subtask.order,
+      totalSubtasks,
+    });
+    
     const openai = getOpenAI();
     const completion = await openai.chat.completions.create({
       model: OPENAI_CHAT_MODEL,
@@ -93,6 +103,12 @@ export async function POST(
           }),
         },
       ],
+    });
+    
+    console.log('[subtask/run] OpenAI response received:', {
+      lessonId,
+      subtaskId,
+      hasContent: !!completion.choices?.[0]?.message?.content,
     });
     
     const content = completion.choices?.[0]?.message?.content || '{}';
@@ -131,12 +147,25 @@ export async function POST(
     );
   } catch (e: unknown) {
     const { lessonId, subtaskId } = await ctx.params;
-    const err = e as { status?: number; message?: string };
+    const err = e as { status?: number; message?: string; stack?: string };
     const message = err?.message ?? 'Failed to execute subtask';
     
-    await updateSubtaskStatus(lessonId, subtaskId, 'failed', message);
+    // Log detailed error for debugging
+    console.error('[subtask/run] Error executing subtask:', {
+      lessonId,
+      subtaskId,
+      error: message,
+      stack: err?.stack,
+      fullError: err,
+    });
+    
+    try {
+      await updateSubtaskStatus(lessonId, subtaskId, 'failed', message);
+    } catch (updateError) {
+      console.error('[subtask/run] Failed to update subtask status:', updateError);
+    }
     
     const status = err?.status ?? 500;
-    return new Response(JSON.stringify({ message }), { status });
+    return new Response(JSON.stringify({ message, error: err?.stack || message }), { status });
   }
 }

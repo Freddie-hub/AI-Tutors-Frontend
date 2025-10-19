@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireUser } from '@/lib/serverAuth';
+import { requireUser, verifyIdToken } from '@/lib/serverAuth';
 import { getLesson, getProgressEvents } from '@/lib/lessonStore';
 import { adminDb } from '@/lib/firebaseAdmin';
 
@@ -8,9 +8,25 @@ export async function GET(
   ctx: { params: Promise<{ lessonId: string }> }
 ) {
   try {
-    const user = await requireUser(req);
     const { lessonId } = await ctx.params;
     const { searchParams } = new URL(req.url);
+    // Authenticate via header or query token (needed for EventSource which cannot set headers)
+    let uid: string | null = null;
+    try {
+      const user = await requireUser(req);
+      uid = user.uid;
+    } catch (e) {
+      const token = searchParams.get('token') || searchParams.get('idToken');
+      if (!token) {
+        return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
+      }
+      try {
+        const decoded = await verifyIdToken(token);
+        uid = decoded.uid;
+      } catch {
+        return new Response(JSON.stringify({ message: 'Invalid token' }), { status: 401 });
+      }
+    }
     const runId = searchParams.get('runId');
     
     if (!runId) {
@@ -23,7 +39,7 @@ export async function GET(
       return new Response(JSON.stringify({ message: 'Lesson not found' }), { status: 404 });
     }
     
-    if (lesson.uid !== user.uid) {
+    if (lesson.uid !== uid) {
       return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 403 });
     }
     
