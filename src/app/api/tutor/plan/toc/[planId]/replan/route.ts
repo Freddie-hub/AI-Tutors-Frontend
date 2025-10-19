@@ -32,6 +32,8 @@ export async function POST(
       originalPlan.topic
     );
     
+    console.log('[replan] Starting replan generation...');
+    
     // Add constraints to preferences
     const enhancedPreferences = [
       preferences || originalPlan.specification,
@@ -41,30 +43,40 @@ export async function POST(
       .join(' ');
     
     const openai = getOpenAI();
-    const timeoutMs = Number(process.env.PLANNER_TIMEOUT_MS || 60000);
-    const completion: any = await Promise.race([
-      openai.chat.completions.create({
-        model: OPENAI_CHAT_MODEL,
-        temperature: 0.5,
-        response_format: { type: 'json_object' },
-        max_tokens: 800,
-        messages: [
-          { role: 'system', content: systemTutor },
-          {
-            role: 'user',
-            content: plannerPrompt({
-              grade: originalPlan.grade,
-              subject: originalPlan.subject,
-              topic: originalPlan.topic,
-              specification: originalPlan.specification,
-              curriculumContext: context,
-              preferences: enhancedPreferences,
-            }),
-          },
-        ],
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Planner timed out')), timeoutMs))
-    ]);
+    const timeoutMs = Number(process.env.PLANNER_TIMEOUT_MS || 20000);
+    
+    let timeoutHandle: NodeJS.Timeout | null = null;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        console.log('[replan] TIMEOUT triggered at', timeoutMs, 'ms');
+        reject(new Error('Planner timed out'));
+      }, timeoutMs);
+    });
+    
+    const completionPromise = openai.chat.completions.create({
+      model: OPENAI_CHAT_MODEL,
+      temperature: 0.5,
+      response_format: { type: 'json_object' },
+      max_tokens: 500,
+      messages: [
+        { role: 'system', content: systemTutor },
+        {
+          role: 'user',
+          content: plannerPrompt({
+            grade: originalPlan.grade,
+            subject: originalPlan.subject,
+            topic: originalPlan.topic,
+            specification: originalPlan.specification,
+            curriculumContext: context,
+            preferences: enhancedPreferences,
+          }),
+        },
+      ],
+    });
+    
+    const completion: any = await Promise.race([completionPromise, timeoutPromise]);
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    console.log('[replan] Completion received');
     
     const content = completion.choices?.[0]?.message?.content || '{}';
     const parsed = JSON.parse(content) as {
@@ -73,6 +85,7 @@ export async function POST(
       estimates: PlanResponsePayload['estimates'];
     };
     
+    console.log('[replan] Creating new plan...');
     // Create a new refined plan
     const newPlanId = await createPlan({
       uid: user.uid,
@@ -99,6 +112,7 @@ export async function POST(
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: unknown) {
+    console.error('[replan] ERROR:', e);
     const err = e as { status?: number; message?: string };
     const isTimeout = (err?.message || '').toLowerCase().includes('timed out');
     const status = isTimeout ? 504 : err?.status ?? 500;

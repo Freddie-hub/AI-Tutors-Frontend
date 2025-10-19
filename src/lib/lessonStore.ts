@@ -22,7 +22,14 @@ export async function createPlan(plan: Omit<LessonPlan, 'planId' | 'createdAt' |
     createdAt: now,
     updatedAt: now,
   };
-  await planRef.set(planData);
+  
+  // Add timeout to Firestore write
+  const writePromise = planRef.set(planData);
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Firestore write timed out')), 10000)
+  );
+  
+  await Promise.race([writePromise, timeoutPromise]);
   return planRef.id;
 }
 

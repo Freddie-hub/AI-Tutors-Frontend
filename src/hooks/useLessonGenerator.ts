@@ -67,7 +67,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       
       const token = await getAuthToken();
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 65000);
+      const timeout = setTimeout(() => controller.abort(), 25000); // 25s client timeout
       const response = await fetch('/api/tutor/plan/toc', {
         method: 'POST',
         headers: {
@@ -116,7 +116,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       
       const token = await getAuthToken();
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 65000);
+      const timeout = setTimeout(() => controller.abort(), 25000); // 25s client timeout
       const response = await fetch(`/api/tutor/plan/toc/${planId}/replan`, {
         method: 'POST',
         headers: {

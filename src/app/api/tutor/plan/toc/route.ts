@@ -14,34 +14,43 @@ export async function POST(req: NextRequest) {
     
     const context = curriculumContext(grade, subject, topic);
     
+    console.log('[planner] Starting plan generation...', { grade, subject, topic });
+    
     const openai = getOpenAI();
-    const timeoutMs = Number(process.env.PLANNER_TIMEOUT_MS || 60000);
-  const completion: any = await Promise.race([
-      openai.chat.completions.create({
-        model: OPENAI_CHAT_MODEL,
-        temperature: 0.4,
-        response_format: { type: 'json_object' },
-        // Cap response size to avoid long generations
-        max_tokens: 800,
-        messages: [
-          { role: 'system', content: systemTutor },
-          {
-            role: 'user',
-            content: plannerPrompt({
-              grade,
-              subject,
-              topic,
-              specification,
-              curriculumContext: context,
-              preferences,
-            }),
-          },
-        ],
-      }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Planner timed out')), timeoutMs)
-      )
-  ]);
+    const timeoutMs = Number(process.env.PLANNER_TIMEOUT_MS || 20000); // Default 20s
+    
+    let timeoutHandle: NodeJS.Timeout | null = null;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        console.log('[planner] TIMEOUT triggered at', timeoutMs, 'ms');
+        reject(new Error('Planner timed out'));
+      }, timeoutMs);
+    });
+    
+    const completionPromise = openai.chat.completions.create({
+      model: OPENAI_CHAT_MODEL,
+      temperature: 0.4,
+      response_format: { type: 'json_object' },
+      max_tokens: 500, // Reduced further
+      messages: [
+        { role: 'system', content: systemTutor },
+        {
+          role: 'user',
+          content: plannerPrompt({
+            grade,
+            subject,
+            topic,
+            specification,
+            curriculumContext: context,
+            preferences,
+          }),
+        },
+      ],
+    });
+    
+    const completion: any = await Promise.race([completionPromise, timeoutPromise]);
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    console.log('[planner] Completion received');
     
     const content = completion.choices?.[0]?.message?.content || '{}';
     const parsed = JSON.parse(content) as {
@@ -50,6 +59,7 @@ export async function POST(req: NextRequest) {
       estimates: PlanResponsePayload['estimates'];
     };
     
+    console.log('[planner] Storing plan in Firestore...');
     // Store the plan in Firestore
     const planId = await createPlan({
       uid: user.uid,
@@ -62,6 +72,7 @@ export async function POST(req: NextRequest) {
       estimates: parsed.estimates,
       status: 'proposed',
     });
+    console.log('[planner] Plan stored, returning response');
     
     const response: PlanResponsePayload = {
       planId,
@@ -76,6 +87,7 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: unknown) {
+    console.error('[planner] ERROR:', e);
     const err = e as { status?: number; message?: string };
     const isTimeout = (err?.message || '').toLowerCase().includes('timed out');
     const status = isTimeout ? 504 : err?.status ?? 500;

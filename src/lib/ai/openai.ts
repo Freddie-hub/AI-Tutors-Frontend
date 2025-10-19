@@ -5,7 +5,11 @@ export function getOpenAI() {
   if (!apiKey) {
     throw new Error('Missing OPENAI_API_KEY');
   }
-  return new OpenAI({ apiKey });
+  return new OpenAI({ 
+    apiKey,
+    timeout: 30000, // 30s timeout on HTTP requests
+    maxRetries: 0,  // No retries to fail fast
+  });
 }
 
 export const OPENAI_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
