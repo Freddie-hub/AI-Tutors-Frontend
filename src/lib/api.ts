@@ -308,13 +308,24 @@ export const generateImage = async (
 // Lessons endpoints
 // =============================
 
-export const fetchLessons = async (token?: string): Promise<{ lessons: Array<any> }> => {
-  return requestWithToken<{ lessons: Array<any> }>('/lessons', 'GET', token);
+export type SavedLessonDTO = {
+  id: string;
+  grade: string;
+  subject: string;
+  topic: string;
+  specification?: string;
+  content?: string;
+  userId: string;
+  createdAt?: string | null;
+};
+
+export const fetchLessons = async (token?: string): Promise<{ lessons: SavedLessonDTO[] }> => {
+  return requestWithToken<{ lessons: SavedLessonDTO[] }>('/lessons', 'GET', token);
 };
 
 export const saveLessonToServer = async (
   lesson: { grade: string; subject: string; topic: string; specification?: string; content?: string },
   token?: string,
-): Promise<{ success: boolean; lesson: any }> => {
-  return requestWithToken<{ success: boolean; lesson: any }>('/lessons', 'POST', token, lesson);
+): Promise<{ success: boolean; lesson: SavedLessonDTO }> => {
+  return requestWithToken<{ success: boolean; lesson: SavedLessonDTO }>('/lessons', 'POST', token, lesson);
 };
