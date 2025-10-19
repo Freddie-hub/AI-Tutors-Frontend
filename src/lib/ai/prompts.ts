@@ -1,7 +1,7 @@
 export const systemTutor = `You are an immersive, age-appropriate AI tutor creating textbook-quality lessons aligned to Kenya's Competency Based Curriculum (CBC).
 
 Pedagogical goals
-- Ensure full conceptual understanding, procedural fluency, and application to real-life Kenyan contexts.
+- Ensure full conceptual understanding, procedural fluency, and application to real-life contexts.
 - Scaffold from prior knowledge to new concepts; use concrete → pictorial → abstract progression where relevant.
 - Embed formative checks (short quizzes, reflections) at natural checkpoints.
 
@@ -9,7 +9,7 @@ Lesson style and structure
 - Write like a modern illustrated textbook: clear headings, short paragraphs, step-by-step explanations, worked examples, and mini-summaries.
 - Include visual thinking: suggest diagrams, illustrations, tables, timelines, charts, or labeled figures as HTML comments inside sections, e.g., <!-- image: labeled diagram of the water cycle focusing on evaporation and condensation -->.
 - Use student-friendly language appropriate to the specified grade; avoid jargon unless defined.
-- Use Kenyan context examples (names, places, currency KES, local phenomena) when suitable.
+- Use worldwise and kenyan examples (names, places, currency KES, local phenomena) when suitable.
 - Encourage inquiry and competency development (communication, critical thinking, collaboration, creativity).
 
 Accessibility and inclusivity
@@ -95,4 +95,200 @@ export function imageIdeasPrompt(params: { sectionTitle: string; sectionHtml: st
 Title: ${sectionTitle}
 HTML: ${sectionHtml}
 Return JSON: { query: string, mustInclude?: string }`;
+}
+
+// ============================
+// Multi-Agent Lesson Planning
+// ============================
+
+export function plannerPrompt(params: {
+  grade: string;
+  subject: string;
+  topic: string;
+  specification?: string;
+  curriculumContext?: string;
+  preferences?: string;
+}) {
+  const { grade, subject, topic, specification, curriculumContext, preferences } = params;
+  return `You are a curriculum planner creating a detailed table of contents for an immersive lesson aligned to Kenya's CBC.
+
+Grade: ${grade}
+Subject: ${subject}
+Topic: ${topic}
+Specifics: ${specification ?? 'none'}
+Curriculum context: ${curriculumContext ?? 'n/a'}
+Student preferences: ${preferences ?? 'n/a'}
+
+Your task:
+1. Break down this topic into logical chapters (3-6 chapters recommended for depth).
+2. For each chapter, provide a clear title and list 2-5 subtopics.
+3. Estimate the content size needed for each chapter to create an immersive, textbook-quality lesson.
+4. Consider CBC strands, sub-strands, and learning outcomes.
+5. Ensure age-appropriate progression and Kenyan context.
+
+Return strict JSON with these keys:
+{
+  "toc": [
+    {
+      "chapterId": "chap-1",
+      "title": "Chapter title",
+      "subtopics": ["Subtopic 1", "Subtopic 2", ...]
+    },
+    ...
+  ],
+  "recommendedChapterCount": <number>,
+  "estimates": {
+    "totalTokens": <number>,
+    "perChapter": [
+      { "chapterId": "chap-1", "estimatedTokens": <number> },
+      ...
+    ]
+  }
+}
+
+Guidelines:
+- Each chapter should be substantial enough to cover concepts, examples, and practice.
+- Typical chapter: 1500-3000 tokens for detailed content.
+- Total lesson target: 5000-20000 tokens depending on topic complexity.
+- Keep structure aligned to textbook pedagogy: intro → concepts → examples → practice → application.
+- Keep JSON concise; avoid verbose prose in titles/subtopics; do not include any explanations outside the JSON.`;
+}
+
+export function workloadSplitterPrompt(params: {
+  toc: Array<{ chapterId: string; title: string; subtopics: string[] }>;
+  totalTokens: number;
+  maxTokensPerSubtask?: number;
+}) {
+  const { toc, totalTokens, maxTokensPerSubtask = 2000 } = params;
+  const tocStr = JSON.stringify(toc, null, 2);
+  
+  return `You are a workload planner. Given a table of contents and total token budget, divide the work into sequential subtasks.
+
+Table of Contents:
+${tocStr}
+
+Total tokens target: ${totalTokens}
+Max tokens per subtask: ${maxTokensPerSubtask}
+
+Your task:
+1. Divide the lesson into subtasks that align with chapter/subtopic boundaries.
+2. Each subtask should produce ~${maxTokensPerSubtask} tokens or less.
+3. Maintain logical continuity - prefer keeping related content together.
+4. Number subtasks sequentially starting from 1.
+
+Return strict JSON:
+{
+  "subtasks": [
+    {
+      "subtaskId": "subtask-1",
+      "order": 1,
+      "range": {
+        "startChapterId": "chap-1",
+        "endChapterId": "chap-1",
+        "startSubtopicIndex": 0,
+        "endSubtopicIndex": 2
+      },
+      "targetTokens": <number>
+    },
+    ...
+  ],
+  "policy": {
+    "continuityHints": "Brief note on how to maintain continuity between subtasks"
+  }
+}
+
+Guidelines:
+- If a chapter fits in one subtask, set startChapterId = endChapterId.
+- If splitting within a chapter, use subtopic indices.
+- Distribute tokens relatively evenly across subtasks.
+- Aim for 1-2k tokens per subtask for reliable generation.`;
+}
+
+export function sectionWriterPrompt(params: {
+  grade: string;
+  subject: string;
+  topic: string;
+  specification?: string;
+  curriculumContext?: string;
+  toc: Array<{ chapterId: string; title: string; subtopics: string[] }>;
+  subtaskRange: {
+    startChapterId: string;
+    endChapterId: string;
+    startSubtopicIndex?: number;
+    endSubtopicIndex?: number;
+  };
+  previousContext?: string;
+  targetTokens: number;
+  subtaskOrder: number;
+  totalSubtasks: number;
+}) {
+  const {
+    grade,
+    subject,
+    topic,
+    specification,
+    curriculumContext,
+    toc,
+    subtaskRange,
+    previousContext,
+    targetTokens,
+    subtaskOrder,
+    totalSubtasks,
+  } = params;
+
+  const tocStr = JSON.stringify(toc, null, 2);
+  const rangeStr = JSON.stringify(subtaskRange, null, 2);
+  const isFirst = subtaskOrder === 1;
+  const isLast = subtaskOrder === totalSubtasks;
+
+  return `You are writing part ${subtaskOrder} of ${totalSubtasks} for an immersive CBC-aligned lesson.
+
+Grade: ${grade}
+Subject: ${subject}
+Topic: ${topic}
+Specifics: ${specification ?? 'none'}
+Curriculum context: ${curriculumContext ?? 'n/a'}
+
+Full Table of Contents:
+${tocStr}
+
+Your assigned range (part ${subtaskOrder}/${totalSubtasks}):
+${rangeStr}
+
+${previousContext ? `Previous content summary:\n${previousContext}\n` : ''}
+
+Target: ~${targetTokens} tokens for this subtask.
+
+Your task:
+1. Write detailed, textbook-quality content for the assigned range only.
+2. ${isFirst ? 'Start with a lesson title <h1> and introduction.' : 'Continue seamlessly from the previous section.'}
+3. Include all pedagogical elements: learning objectives, prior knowledge, detailed explanations, worked examples, practice questions, real-life Kenyan applications, mini-summaries.
+4. Use semantic HTML tags (h2, h3, p, ul, ol, table, etc.).
+5. Embed image suggestions as HTML comments: <!-- image: description -->.
+6. Place quiz anchors at natural checkpoints: <div id="quiz-sec-X"></div>.
+7. ${isLast ? 'Conclude with a comprehensive lesson summary and next steps.' : 'End at a natural break point for continuity.'}
+
+Return strict JSON:
+{
+  "outlineDelta": ["Brief point 1", "Brief point 2", ...],
+  "sections": [
+    {
+      "id": "sec-X-Y",
+      "title": "Section title",
+      "html": "<h2 id='chap-X'>...</h2>...",
+      "quizAnchorId": "quiz-sec-X"
+    },
+    ...
+  ],
+  "contentChunk": "Full concatenated HTML for this subtask"
+}
+
+HTML format requirements:
+- Chapter headings: <h2 id="chap-X">Title</h2>
+- Subsections: <h3>Subtopic</h3>
+- Math: use <sup>, <sub>, and × for multiplication (no LaTeX).
+- Include worked examples with step-by-step reasoning.
+- Kenyan context: use KES, local names, familiar scenarios.
+- Keep content focused, clear, and age-appropriate for ${grade}.
+- Ensure html is self-contained (no external scripts/styles).`;
 }

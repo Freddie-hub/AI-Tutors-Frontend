@@ -8,13 +8,14 @@ import LessonContent from './LessonContent';
 import LessonActions from './LessonActions';
 import LessonFormModal from './LessonFormModal';
 import AgentWorking from './AgentWorking';
+// Using shared generation state from LessonContext
 
 export default function LessonCanvas() {
-  const { lesson, isGenerating } = useLesson();
+  const { lesson, generationStatus, currentAgent } = useLesson();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  if (isGenerating) {
-    return <AgentWorking />;
+  if (generationStatus === 'planning' || generationStatus === 'accepting' || generationStatus === 'splitting' || generationStatus === 'generating') {
+    return <AgentWorking agent={currentAgent ?? undefined} />;
   }
 
   if (!lesson) return <LessonPlaceholder />;

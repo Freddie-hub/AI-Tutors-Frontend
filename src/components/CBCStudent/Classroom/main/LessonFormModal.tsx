@@ -4,8 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Button from '@/components/ui/Button';
 import { useLesson } from '../context/LessonContext';
 import Card from '@/components/CBCStudent/shared/Card';
-import { generateLesson } from '@/lib/api';
-import { useAuth } from '@/lib/hooks';
+import AgentWorking from './AgentWorking';
+import { useLessonGenerator } from '@/hooks/useLessonGenerator';
 
 type Props = {
   open: boolean;
@@ -13,8 +13,37 @@ type Props = {
 };
 
 export default function LessonFormModal({ open, onClose }: Props) {
-  const { setLesson, setIsGenerating } = useLesson();
-  const { user } = useAuth();
+  const { setLesson, setGenerationStatus, setCurrentAgent: setCtxAgent, setGenerationProgress } = useLesson();
+  const {
+    status,
+    error,
+    progress,
+    currentAgent,
+    toc,
+    final,
+    lessonId,
+    generateTOC,
+    acceptTOC,
+    splitWorkload,
+    startGeneration,
+    cancelGeneration,
+    replanTOC,
+  } = useLessonGenerator({
+    onProgress: (evt) => {
+      if (evt.agent) setCtxAgent(evt.agent);
+      if (evt.type === 'subtask_complete') {
+        setGenerationProgress({ current: evt.data?.order || 0, total: evt.data?.totalSubtasks || 0 });
+      }
+    },
+    onComplete: () => {
+      setCtxAgent(null);
+      setGenerationStatus('completed');
+    },
+    onError: () => {
+      setGenerationStatus('error');
+      setCtxAgent(null);
+    }
+  });
   // Hardcoded curriculum (grades -> subjects -> topics -> subtopics names only)
   const CURRICULUM = useMemo(() => ({
     'Grade 1': {
@@ -783,6 +812,8 @@ export default function LessonFormModal({ open, onClose }: Props) {
   const [topic, setTopic] = useState<string>('');
   // specification free text instead of subtopic
   const [specification, setSpecification] = useState<string>('');
+  const [replanNotes, setReplanNotes] = useState<string>('');
+  const [totalTokens, setTotalTokens] = useState<number>(12000);
 
   // Ensure defaults are valid and cascade resets
   useEffect(() => {
@@ -805,119 +836,254 @@ export default function LessonFormModal({ open, onClose }: Props) {
   }, [subject, topicOptions.length]);
 
   // No subtopic cascading required
+  
 
-  if (!open) return null;
-
-  const createLesson = async () => {
-    try {
-      // show blank main section and working state
-      setIsGenerating(true);
-      setLesson(null);
-      const token = await user?.getIdToken();
-      const res = await generateLesson({ grade, subject, topic, specification }, token || undefined);
+  // When generation completes, persist lesson into context and close
+  useEffect(() => {
+    if (status === 'completed' && final && lessonId) {
       setLesson({
-        id: res.lessonId,
-        grade: res.grade,
-        subject: res.subject,
-        topic: res.topic,
-        specification: res.specification,
-        content: res.content,
-      });
-      onClose();
-    } catch (e) {
-      // fallback local lesson
-      setLesson({
-        id: Date.now().toString(),
+        id: lessonId,
         grade,
         subject,
         topic,
         specification,
-        content: 'We had trouble generating a lesson right now. Try again shortly.',
+        content: final.content,
       });
       onClose();
-    } finally {
-      setIsGenerating(false);
+    }
+  }, [status, final, lessonId, setLesson, grade, subject, topic, specification, onClose]);
+
+  // Mirror status/agent to context so other components can react
+  useEffect(() => {
+    setGenerationStatus(status);
+  }, [status, setGenerationStatus]);
+  useEffect(() => {
+    setCtxAgent(currentAgent ?? null);
+  }, [currentAgent, setCtxAgent]);
+
+  const handleGenerateTOC = async () => {
+    try {
+      await generateTOC({ grade, subject, topic, specification });
+    } catch (e) {
+      // noop, error shown below
     }
   };
 
+  const handleAcceptAndGenerate = async () => {
+    try {
+      await acceptTOC();
+      await splitWorkload(totalTokens);
+      await startGeneration();
+    } catch (e) {
+      // noop, error shown below
+    }
+  };
+
+  const handleReplan = async () => {
+    try {
+      await replanTOC(replanNotes || undefined, undefined);
+      setReplanNotes('');
+    } catch (e) {
+      // noop
+    }
+  };
+
+  const safeClose = async () => {
+    // If generation is active, cancel it before closing
+    if (status === 'generating') {
+      try { await cancelGeneration(); } catch { /* ignore */ }
+    }
+    onClose();
+  };
+
+  if (!open) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <Card className="w-full max-w-lg rounded-2xl bg-[#111113]">
+      <Card className="w-full max-w-2xl rounded-2xl bg-[#111113]">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Create Lesson</h3>
-          <button onClick={onClose} className="text-white/60 hover:text-white">✕</button>
+          <button onClick={safeClose} className="text-white/60 hover:text-white">✕</button>
         </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-white/70 mb-1">Grade</label>
-            <select
-              className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
-              value={grade}
-              onChange={(e) => setGrade(e.target.value)}
-            >
-              {gradeOptions.map((g: string) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
-          </div>
 
-          <div>
-            <label className="block text-sm text-white/70 mb-1">Subject</label>
-            <select
-              className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            >
-              {subjectOptions.map((s: string) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Step 1: Input Form */}
+        {status === 'idle' && !toc && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-white/70 mb-1">Grade</label>
+                <select
+                  className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                >
+                  {gradeOptions.map((g: string) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div>
-            <label className="block text-sm text-white/70 mb-1">Topic</label>
-            <select
-              className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-            >
-              {topicOptions.length === 0 ? (
-                <option value="" disabled>
-                  No topics available
-                </option>
-              ) : (
-                topicOptions.map((t: string) => (
-                  <option key={t} value={t}>
-                    {t}
+              <div>
+                <label className="block text-sm text-white/70 mb-1">Subject</label>
+                <select
+                  className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                >
+                  {subjectOptions.map((s: string) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-white/70 mb-1">Topic</label>
+              <select
+                className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+              >
+                {topicOptions.length === 0 ? (
+                  <option value="" disabled>
+                    No topics available
                   </option>
-                ))
-              )}
-            </select>
-          </div>
+                ) : (
+                  topicOptions.map((t: string) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-sm text-white/70 mb-1">Specification</label>
-            <textarea
-              className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2 min-h-24 resize-y"
-              placeholder="Describe specifics: focus area, level, goals, constraints (e.g., exam board, duration)."
-              value={specification}
-              onChange={(e) => setSpecification(e.target.value)}
-            />
-          </div>
-        </div>
+            <div>
+              <label className="block text-sm text-white/70 mb-1">Specification</label>
+              <textarea
+                className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2 min-h-24 resize-y"
+                placeholder="Describe specifics: focus area, level, goals, constraints (e.g., exam board, duration)."
+                value={specification}
+                onChange={(e) => setSpecification(e.target.value)}
+              />
+            </div>
 
-        <div className="mt-6 flex items-center justify-end gap-3">
-          <Button onClick={onClose} className="bg-transparent border border-white/10 hover:bg-white/5">
-            Cancel
-          </Button>
-          <Button onClick={createLesson} className="bg-[#A855F7] hover:bg-[#9333EA] text-white shadow-[0_0_10px_rgba(168,85,247,0.15)]">
-            Create Lesson
-          </Button>
-        </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs text-white/60">
+                <label htmlFor="tokens">Total tokens</label>
+                <input
+                  id="tokens"
+                  type="number"
+                  min={4000}
+                  step={1000}
+                  className="w-28 bg-[#0E0E10] border border-white/10 rounded-lg px-2 py-1"
+                  value={totalTokens}
+                  onChange={(e) => setTotalTokens(Number(e.target.value))}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <Button onClick={onClose} className="bg-transparent border border-white/10 hover:bg-white/5">
+                  Cancel
+                </Button>
+                <Button onClick={handleGenerateTOC} className="bg-[#A855F7] hover:bg-[#9333EA] text-white shadow-[0_0_10px_rgba(168,85,247,0.15)]">
+                  Generate Table of Contents
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Planning / Splitting indicators */}
+        {(status === 'planning' || status === 'accepting' || status === 'splitting') && (
+          <div className="space-y-3">
+            <AgentWorking agent={currentAgent ?? undefined} />
+            <p className="text-center text-white/70 text-sm capitalize">{status}...</p>
+            <div className="flex items-center justify-end gap-3">
+              <Button onClick={onClose} className="bg-transparent border border-white/10 hover:bg-white/5">
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: TOC Review */}
+        {toc && status === 'idle' && !final && (
+          <div className="space-y-4">
+            <h4 className="text-white font-semibold">Review Table of Contents</h4>
+            <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+              {toc.map((chapter, idx) => (
+                <div key={chapter.chapterId} className="border border-white/10 rounded-lg p-3">
+                  <p className="font-medium text-white">Chapter {idx + 1}: {chapter.title}</p>
+                  <ul className="list-disc list-inside text-sm text-white/70 mt-1">
+                    {chapter.subtopics.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <label className="block text-xs text-white/60 mb-1">Replan notes (optional)</label>
+              <input
+                type="text"
+                value={replanNotes}
+                onChange={(e) => setReplanNotes(e.target.value)}
+                placeholder="e.g., Make it more concise, add more examples"
+                className="w-full bg-[#0E0E10] border border-white/10 rounded-lg px-3 py-2"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <Button onClick={handleReplan} className="bg-transparent border border-white/10 hover:bg-white/5">
+                Replan
+              </Button>
+              <Button onClick={handleAcceptAndGenerate} className="bg-green-600 hover:bg-green-700 text-white">
+                Accept & Generate
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Generation */}
+        {status === 'generating' && (
+          <div className="space-y-4">
+            <h4 className="text-white font-semibold">Generating Lesson</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-white/70">
+                <span>Progress</span>
+                <span>{progress.current} / {progress.total} sections</span>
+              </div>
+              <div className="w-full bg-[#0E0E10] rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+            <div className="text-sm text-white/80">
+              Active agent: <span className="font-medium">{currentAgent ?? '...'}</span>
+            </div>
+            <AgentWorking agent={currentAgent ?? undefined} />
+            <div className="flex items-center justify-end gap-3">
+              <Button onClick={async () => { await cancelGeneration(); onClose(); }} className="bg-red-600 hover:bg-red-700 text-white">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Errors */}
+        {error && (
+          <div className="mt-4 bg-red-900/20 border border-red-500/50 rounded-lg p-3">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
       </Card>
     </div>
   );
