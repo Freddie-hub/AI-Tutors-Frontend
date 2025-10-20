@@ -128,7 +128,7 @@ export default function UpskillOnboardingPage() {
         throw new Error(response.message ?? 'Failed to complete onboarding');
       }
 
-      router.replace(response.redirectUrl ?? '/dashboard/student');
+      router.replace(response.redirectUrl ?? '/dashboard/upskill');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to complete onboarding. Please try again.';
       setError(message);

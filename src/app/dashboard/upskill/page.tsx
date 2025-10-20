@@ -9,10 +9,10 @@ import { useAuthUser } from '@/lib/hooks';
 import { formatDateParts } from '@/lib/date';
 
 export default function Page() {
-    // Allow student-type roles only; must be onboarded
-    useDashboardProtection(['individual-student', 'institution-student']);
+    // Allow upskill-individual role only; must be onboarded
+    useDashboardProtection(['upskill-individual']);
     const { user, profile } = useAuthUser();
-    const displayName = profile?.displayName || user?.displayName || 'Student';
+    const displayName = profile?.displayName || user?.displayName || 'Learner';
     const today = new Date();
     const { weekday, dateText } = formatDateParts(today);
 

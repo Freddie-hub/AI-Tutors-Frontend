@@ -1,8 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { collection, addDoc, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/hooks';
 
 export type Lesson = {
@@ -47,17 +45,11 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
     
     setIsLoading(true);
     try {
-      const lessonsRef = collection(db, 'lessons');
-      const q = query(
-        lessonsRef,
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      const lessons = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
+      const { fetchLessons } = await import('@/lib/api');
+      const response = await fetchLessons();
+      const lessons = response.lessons.map(lesson => ({
+        ...lesson,
+        createdAt: lesson.createdAt ? new Date(lesson.createdAt) : undefined,
       })) as Lesson[];
       setSavedLessons(lessons);
     } catch (error) {
@@ -71,25 +63,24 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
     if (!lessonToSave || !user?.uid) return;
 
     try {
-      const lessonsRef = collection(db, 'lessons');
-      const docRef = await addDoc(lessonsRef, {
+      const { saveLessonToServer } = await import('@/lib/api');
+      const response = await saveLessonToServer({
         grade: lessonToSave.grade,
         subject: lessonToSave.subject,
         topic: lessonToSave.topic,
         specification: lessonToSave.specification || '',
         content: lessonToSave.content || '',
-        userId: user.uid,
-        createdAt: Timestamp.now(),
       });
       
-      // Add to local state
-      const newLesson = {
-        ...lessonToSave,
-        id: docRef.id,
-        createdAt: new Date(),
-        userId: user.uid,
-      };
-      setSavedLessons(prev => [newLesson, ...prev]);
+      if (response.success) {
+        const newLesson = {
+          ...lessonToSave,
+          id: response.lesson.id,
+          createdAt: response.lesson.createdAt ? new Date(response.lesson.createdAt) : new Date(),
+          userId: user.uid,
+        };
+        setSavedLessons(prev => [newLesson, ...prev]);
+      }
     } catch (error) {
       console.error('Error saving lesson:', error);
       throw error;
