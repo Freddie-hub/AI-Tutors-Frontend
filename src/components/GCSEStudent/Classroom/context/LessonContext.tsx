@@ -1,9 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { collection, addDoc, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/hooks';
+import type { AgentType } from '@/lib/ai/types';
 
 export type Lesson = {
   id: string;
@@ -24,6 +23,16 @@ type LessonContextType = {
   loadLesson: (lesson: Lesson) => void;
   loadSavedLessons: () => Promise<void>;
   isLoading: boolean;
+  // Deprecated: use generationStatus instead
+  isGenerating: boolean;
+  setIsGenerating: React.Dispatch<React.SetStateAction<boolean>>;
+  // Shared generation state for multi-agent pipeline
+  generationStatus: 'idle' | 'planning' | 'accepting' | 'splitting' | 'generating' | 'completed' | 'error';
+  setGenerationStatus: React.Dispatch<React.SetStateAction<'idle' | 'planning' | 'accepting' | 'splitting' | 'generating' | 'completed' | 'error'>>;
+  currentAgent: AgentType | null;
+  setCurrentAgent: React.Dispatch<React.SetStateAction<AgentType | null>>;
+  generationProgress: { current: number; total: number };
+  setGenerationProgress: React.Dispatch<React.SetStateAction<{ current: number; total: number }>>;
 };
 
 const LessonContext = createContext<LessonContextType | null>(null);
@@ -32,6 +41,10 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
   const [lesson, setLesson] = useState<Lesson>(null);
   const [savedLessons, setSavedLessons] = useState<Lesson[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStatus, setGenerationStatus] = useState<'idle' | 'planning' | 'accepting' | 'splitting' | 'generating' | 'completed' | 'error'>('idle');
+  const [currentAgent, setCurrentAgent] = useState<AgentType | null>(null);
+  const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
   const { user } = useAuth();
 
   // Load saved lessons when user is available
@@ -47,17 +60,11 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
     
     setIsLoading(true);
     try {
-      const lessonsRef = collection(db, 'lessons');
-      const q = query(
-        lessonsRef,
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      const lessons = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
+      const { fetchLessons } = await import('@/lib/api');
+      const response = await fetchLessons();
+      const lessons = response.lessons.map(lesson => ({
+        ...lesson,
+        createdAt: lesson.createdAt ? new Date(lesson.createdAt) : undefined,
       })) as Lesson[];
       setSavedLessons(lessons);
     } catch (error) {
@@ -71,25 +78,24 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
     if (!lessonToSave || !user?.uid) return;
 
     try {
-      const lessonsRef = collection(db, 'lessons');
-      const docRef = await addDoc(lessonsRef, {
+      const { saveLessonToServer } = await import('@/lib/api');
+      const response = await saveLessonToServer({
         grade: lessonToSave.grade,
         subject: lessonToSave.subject,
         topic: lessonToSave.topic,
         specification: lessonToSave.specification || '',
         content: lessonToSave.content || '',
-        userId: user.uid,
-        createdAt: Timestamp.now(),
       });
       
-      // Add to local state
-      const newLesson = {
-        ...lessonToSave,
-        id: docRef.id,
-        createdAt: new Date(),
-        userId: user.uid,
-      };
-      setSavedLessons(prev => [newLesson, ...prev]);
+      if (response.success) {
+        // Add to local state
+        const newLesson = {
+          ...response.lesson,
+          createdAt: response.lesson.createdAt ? new Date(response.lesson.createdAt) : new Date(),
+          userId: user.uid,
+        };
+        setSavedLessons(prev => [newLesson, ...prev]);
+      }
     } catch (error) {
       console.error('Error saving lesson:', error);
       throw error;
@@ -109,7 +115,15 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
         saveLesson, 
         loadLesson,
         loadSavedLessons,
-        isLoading 
+        isLoading,
+        isGenerating,
+        setIsGenerating,
+        generationStatus,
+        setGenerationStatus,
+        currentAgent,
+        setCurrentAgent,
+        generationProgress,
+        setGenerationProgress,
       }}
     >
       {children}
