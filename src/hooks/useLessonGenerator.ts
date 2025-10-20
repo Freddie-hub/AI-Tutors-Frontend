@@ -21,6 +21,7 @@ interface GenerateLessonParams {
   specification?: string;
   preferences?: string;
   totalTokens?: number;
+  curriculumContext?: string;
 }
 
 export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
@@ -81,6 +82,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
           topic: params.topic,
           specification: params.specification,
           preferences: params.preferences,
+          curriculumContext: params.curriculumContext,
           persist: false,
         }),
       });

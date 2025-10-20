@@ -7,10 +7,29 @@ import Card from '@/components/CBCStudent/shared/Card';
 import AgentWorking from './AgentWorking';
 import { useLessonGenerator } from '@/hooks/useLessonGenerator';
 import type { PlanResponsePayload } from '@/lib/ai/types';
+import curriculumData from '@/components/CBCStudent/cbc_curriculum_simple.json';
 
 type Props = {
   open: boolean;
   onClose: () => void;
+};
+
+// Type definitions for curriculum structure
+type CurriculumStrand = {
+  id: string;
+  name: string;
+  subtopics: string[];
+};
+
+type CurriculumSubject = {
+  name: string;
+  strands: CurriculumStrand[];
+};
+
+type CurriculumGrade = {
+  programme: string;
+  grade_number: number;
+  subjects: CurriculumSubject[];
 };
 
 export default function LessonFormModal({ open, onClose }: Props) {
@@ -46,797 +65,69 @@ export default function LessonFormModal({ open, onClose }: Props) {
       setCtxAgent(null);
     }
   });
-  // Hardcoded curriculum (grades -> subjects -> topics -> subtopics names only)
-  const CURRICULUM = useMemo(() => ({
-    'Grade 1': {
-      'English Language Activities': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Language Structures and Functions': [],
-      },
-      'Kiswahili Language Activities': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Matumizi ya Lugha': [],
-      },
-      'Mathematical Activities': {
-        'Numbers': [],
-        'Measurement': [],
-        'Geometry': [],
-        'Data Handling': [],
-      },
-      'Environmental Activities': {
-        'Environment and its Resources': [],
-        'Social Environment': [],
-        'Care for the Environment': [],
-      },
-      'Creative Activities': {
-        'Art and Craft': [],
-        'Music': [],
-        'Movement': [],
-      },
-      'Religious Education Activities (CRE Example)': {
-        'Creation': [],
-        'The Holy Bible': [],
-        'Christian Values': [],
-        'The Church': [],
-      },
-      'Indigenous Language Activities': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Language Structures': [],
-      },
-    },
-    'Grade 2': {
-      'English Language Activities': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Language Structures and Functions': [],
-      },
-      'Kiswahili Language Activities': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Matumizi ya Lugha': [],
-      },
-      'Mathematical Activities': {
-        'Numbers': [],
-        'Measurement': [],
-        'Geometry': [],
-        'Data Handling': [],
-      },
-      'Environmental Activities': {
-        'Environment and its Resources': [],
-        'Social Environment': [],
-        'Care for the Environment': [],
-      },
-      'Creative Activities': {
-        'Art and Craft': [],
-        'Music': [],
-        'Movement': [],
-      },
-      'Religious Education Activities (CRE Example)': {
-        'Creation': [],
-        'The Holy Bible': [],
-        'Christian Values': [],
-        'The Church': [],
-      },
-      'Indigenous Language Activities': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Language Structures': [],
-      },
-    },
-    'Grade 3': {
-      'English Language Activities': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Language Structures and Functions': [],
-      },
-      'Kiswahili Language Activities': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Matumizi ya Lugha': [],
-      },
-      'Mathematical Activities': {
-        'Numbers': [],
-        'Measurement': [],
-        'Geometry': [],
-        'Data Handling': [],
-      },
-      'Environmental Activities': {
-        'Environment and its Resources': [],
-        'Social Environment': [],
-        'Care for the Environment': [],
-      },
-      'Creative Activities': {
-        'Art and Craft': [],
-        'Music': [],
-        'Movement': [],
-      },
-      'Religious Education Activities (CRE Example)': {
-        'Creation': [],
-        'The Holy Bible': [],
-        'Christian Values': [],
-        'The Church': [],
-      },
-      'Indigenous Language Activities': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Language Structures': [],
-      },
-    },
-    'Grade 4': {
-      'English Language Activities': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Language Structures and Functions': [],
-      },
-      'Kiswahili Language Activities': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Matumizi ya Lugha': [],
-      },
-      'Mathematical Activities': {
-        'Numbers': [],
-        'Measurement': [],
-        'Geometry': [],
-        'Data Handling': [],
-      },
-      'Science and Technology Activities': {
-        'Living Things': [],
-        'Matter': [],
-        'Energy and Forces': [],
-        'Earth and Space': [],
-        'Technology': [],
-      },
-      'Social Studies Activities': {
-        'Our Environment': [],
-        'People and Communities': [],
-        'Citizenship': [],
-      },
-      'Religious Education Activities (CRE Example)': {
-        'Creation and the Bible': [],
-        'Life and Ministry of Jesus': [],
-        'Christian Values': [],
-        'Church and Sacraments': [],
-      },
-      'Home Science Activities': {
-        'Growth and Development': [],
-        'Clothing and Textiles': [],
-        'Food and Nutrition': [],
-        'Environmental Care': [],
-      },
-      'Physical and Health Education Activities': {
-        'Physical Fitness': [],
-        'Health Education': [],
-        'Safety and First Aid': [],
-      },
-      'Creative Arts Activities': {
-        'Visual Arts': [],
-        'Performing Arts': [],
-        'Integrated Arts': [],
-      },
-      'Indigenous Language Activities': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi': [],
-      },
-    },
-    'Grade 5': {
-      'English Language Activities': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Language Structures and Functions': [],
-      },
-      'Kiswahili Language Activities': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Matumizi ya Lugha': [],
-      },
-      'Mathematical Activities': {
-        'Numbers': [],
-        'Measurement': [],
-        'Geometry': [],
-        'Data Handling': [],
-      },
-      'Science and Technology Activities': {
-        'Living Things': [],
-        'Matter': [],
-        'Energy and Forces': [],
-        'Earth and Space': [],
-        'Technology': [],
-      },
-      'Social Studies Activities': {
-        'Our Environment': [],
-        'People and Communities': [],
-        'Citizenship': [],
-      },
-      'Religious Education Activities (CRE Example)': {
-        'Creation and the Bible': [],
-        'Life and Ministry of Jesus': [],
-        'Christian Values': [],
-        'Church and Sacraments': [],
-      },
-      'Home Science Activities': {
-        'Growth and Development': [],
-        'Clothing and Textiles': [],
-        'Food and Nutrition': [],
-        'Environmental Care': [],
-      },
-      'Physical and Health Education Activities': {
-        'Physical Fitness': [],
-        'Health Education': [],
-        'Safety and First Aid': [],
-      },
-      'Creative Arts Activities': {
-        'Visual Arts': [],
-        'Performing Arts': [],
-        'Integrated Arts': [],
-      },
-      'Indigenous Language Activities': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi': [],
-      },
-    },
-    'Grade 6': {
-      'English Language Activities': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Language Structures and Functions': [],
-      },
-      'Kiswahili Language Activities': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Matumizi ya Lugha': [],
-      },
-      'Mathematical Activities': {
-        'Numbers': [],
-        'Measurement': [],
-        'Geometry': [],
-        'Data Handling': [],
-      },
-      'Science and Technology Activities': {
-        'Living Things': [],
-        'Matter': [],
-        'Energy and Forces': [],
-        'Earth and Space': [],
-        'Technology': [],
-      },
-      'Social Studies Activities': {
-        'Our Environment': [],
-        'People and Communities': [],
-        'Citizenship': [],
-      },
-      'Religious Education Activities (CRE Example)': {
-        'Creation and the Bible': [],
-        'Life and Ministry of Jesus': [],
-        'Christian Values': [],
-        'Church and Sacraments': [],
-      },
-      'Home Science Activities': {
-        'Growth and Development': [],
-        'Clothing and Textiles': [],
-        'Food and Nutrition': [],
-        'Environmental Care': [],
-      },
-      'Physical and Health Education Activities': {
-        'Physical Fitness': [],
-        'Health Education': [],
-        'Safety and First Aid': [],
-      },
-      'Creative Arts Activities': {
-        'Visual Arts': [],
-        'Performing Arts': [],
-        'Integrated Arts': [],
-      },
-      'Indigenous Language Activities': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi': [],
-      },
-    },
-    'Grade 7': {
-      'English': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Grammar and Vocabulary': [],
-      },
-      'Kiswahili': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Msamiati': [],
-      },
-      'Mathematics': {
-        'Numbers': [],
-        'Algebra': [],
-        'Geometry': [],
-        'Measurement': [],
-        'Data Handling and Probability': [],
-      },
-      'Integrated Science': {
-        'Scientific Skills': [],
-        'Biology': [],
-        'Chemistry': [],
-        'Physics': [],
-        'Earth and Space': [],
-      },
-      'Social Studies': {
-        'History': [],
-        'Geography': [],
-        'Civics': [],
-        'Economics': [],
-      },
-      'Religious Education (CRE Example)': {
-        'The Bible': [],
-        'Christian Living': [],
-        'Church History': [],
-        'Contemporary Issues': [],
-      },
-      'Pre-Technical and Pre-Career Education': {
-        'Technical Skills': [],
-        'Technology': [],
-        'Career Education': [],
-        'Project Work': [],
-      },
-      'Health Education': {
-        'Personal Health': [],
-        'Disease Prevention': [],
-        'Safety Education': [],
-        'Substance Abuse': [],
-      },
-      'Creative Arts and Sports': {
-        'Visual Arts': [],
-        'Performing Arts': [],
-        'Sports': [],
-      },
-      'Agriculture': {
-        'Crop Production': [],
-        'Animal Production': [],
-        'Agricultural Technology': [],
-        'Agri-business': [],
-      },
-      'Business Studies': {
-        'Business Concepts': [],
-        'Financial Literacy': [],
-        'Economics': [],
-        'Business Technology': [],
-      },
-      'Indigenous Language or Foreign Language (French Example)': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Grammar': [],
-      },
-    },
-    'Grade 8': {
-      'English': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Grammar and Vocabulary': [],
-      },
-      'Kiswahili': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Msamiati': [],
-      },
-      'Mathematics': {
-        'Numbers': [],
-        'Algebra': [],
-        'Geometry': [],
-        'Measurement': [],
-        'Data Handling and Probability': [],
-      },
-      'Integrated Science': {
-        'Scientific Skills': [],
-        'Biology': [],
-        'Chemistry': [],
-        'Physics': [],
-        'Earth and Space': [],
-      },
-      'Social Studies': {
-        'History': [],
-        'Geography': [],
-        'Civics': [],
-        'Economics': [],
-      },
-      'Religious Education (CRE Example)': {
-        'The Bible': [],
-        'Christian Living': [],
-        'Church History': [],
-        'Contemporary Issues': [],
-      },
-      'Pre-Technical and Pre-Career Education': {
-        'Technical Skills': [],
-        'Technology': [],
-        'Career Education': [],
-        'Project Work': [],
-      },
-      'Health Education': {
-        'Personal Health': [],
-        'Disease Prevention': [],
-        'Safety Education': [],
-        'Substance Abuse': [],
-      },
-      'Creative Arts and Sports': {
-        'Visual Arts': [],
-        'Performing Arts': [],
-        'Sports': [],
-      },
-      'Agriculture': {
-        'Crop Production': [],
-        'Animal Production': [],
-        'Agricultural Technology': [],
-        'Agri-business': [],
-      },
-      'Business Studies': {
-        'Business Concepts': [],
-        'Financial Literacy': [],
-        'Economics': [],
-        'Business Technology': [],
-      },
-      'Indigenous Language or Foreign Language (French Example)': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Grammar': [],
-      },
-    },
-    'Grade 9': {
-      'English': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Grammar and Vocabulary': [],
-      },
-      'Kiswahili': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Msamiati': [],
-      },
-      'Mathematics': {
-        'Numbers': [],
-        'Algebra': [],
-        'Geometry': [],
-        'Measurement': [],
-        'Data Handling and Probability': [],
-      },
-      'Integrated Science': {
-        'Scientific Skills': [],
-        'Biology': [],
-        'Chemistry': [],
-        'Physics': [],
-        'Earth and Space': [],
-      },
-      'Social Studies': {
-        'History': [],
-        'Geography': [],
-        'Civics': [],
-        'Economics': [],
-      },
-      'Religious Education (CRE Example)': {
-        'The Bible': [],
-        'Christian Living': [],
-        'Church History': [],
-        'Contemporary Issues': [],
-      },
-      'Pre-Technical and Pre-Career Education': {
-        'Technical Skills': [],
-        'Technology': [],
-        'Career Education': [],
-        'Project Work': [],
-      },
-      'Health Education': {
-        'Personal Health': [],
-        'Disease Prevention': [],
-        'Safety Education': [],
-        'Substance Abuse': [],
-      },
-      'Creative Arts and Sports': {
-        'Visual Arts': [],
-        'Performing Arts': [],
-        'Sports': [],
-      },
-      'Agriculture': {
-        'Crop Production': [],
-        'Animal Production': [],
-        'Agricultural Technology': [],
-        'Agri-business': [],
-      },
-      'Business Studies': {
-        'Business Concepts': [],
-        'Financial Literacy': [],
-        'Economics': [],
-        'Business Technology': [],
-      },
-      'Indigenous Language or Foreign Language (French Example)': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Grammar': [],
-      },
-    },
-    'Grade 10': {
-      'Community Service Learning': {
-        'Community Engagement': [],
-        'Leadership and Ethics': [],
-        'Sustainable Development': [],
-      },
-      'Mathematics': {
-        'Numbers and Algebra': [],
-        'Geometry and Measurement': [],
-        'Statistics and Probability': [],
-        'Financial Maths': [],
-      },
-      'English Language': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Grammar and Literature': [],
-      },
-      'Kiswahili Language': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-        'Sarufi na Fasihi': [],
-      },
-      'Indigenous Language or Foreign Language (French Example)': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Cultural Studies': [],
-      },
-      'Biology (STEM)': {
-        'Cell Biology': [],
-        'Genetics and Evolution': [],
-        'Ecology': [],
-        'Human Physiology': [],
-      },
-      'Chemistry (STEM)': {
-        'Atomic Structure': [],
-        'Chemical Bonding': [],
-        'Organic Chemistry': [],
-        'Stoichiometry': [],
-      },
-      'Physics (STEM)': {
-        'Mechanics': [],
-        'Waves and Optics': [],
-        'Electricity': [],
-        'Thermal Physics': [],
-      },
-      'History and Citizenship (Social Sciences)': {
-        'Kenyan History': [],
-        'World History': [],
-        'Citizenship': [],
-      },
-      'Geography (Social Sciences)': {
-        'Physical Geography': [],
-        'Human Geography': [],
-        'Environmental Management': [],
-      },
-      'Economics (Social Sciences)': {
-        'Microeconomics': [],
-        'Macroeconomics': [],
-        'Development Economics': [],
-      },
-      'Performing Arts (Arts and Sports)': {
-        'Music': [],
-        'Drama': [],
-        'Dance': [],
-      },
-      'Visual Arts (Arts and Sports)': {
-        'Drawing and Painting': [],
-        'Sculpture and Ceramics': [],
-        'Digital Arts': [],
-      },
-      'Sports Science (Arts and Sports)': {
-        'Anatomy and Physiology': [],
-        'Skills and Techniques': [],
-        'Management': [],
-      },
-      'Religious Education (CRE Example, Optional)': {
-        'The Bible': [],
-        'Christian Living': [],
-        'Contemporary Issues': [],
-      },
-    },
-    'Grade 11': {
-      'Community Service Learning': {
-        'Advanced Engagement': [],
-        'Global Citizenship': [],
-      },
-      'Mathematics': {
-        'Advanced Algebra': [],
-        'Calculus Intro': [],
-        'Vectors and Transformations': [],
-        'Statistics': [],
-      },
-      'English Language': {
-        'Advanced Communication': [],
-        'Literary Studies': [],
-        'Research Writing': [],
-      },
-      'Kiswahili Language': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-        'Kuandika': [],
-      },
-      'Indigenous Language or Foreign Language (French Example)': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Cultural Studies': [],
-      },
-      'Biology (STEM)': {
-        'Molecular Biology': [],
-        'Evolution and Diversity': [],
-        'Applied Physiology': [],
-      },
-      'Chemistry (STEM)': {
-        'Thermodynamics': [],
-        'Electrochemistry': [],
-        'Analytical Chemistry': [],
-      },
-      'Physics (STEM)': {
-        'Modern Physics': [],
-        'Electromagnetism': [],
-        'Applied Mechanics': [],
-      },
-      'History and Citizenship (Social Sciences)': {
-        'Contemporary History': [],
-        'Political Systems': [],
-      },
-      'Geography (Social Sciences)': {
-        'Advanced Physical Geography': [],
-        'Human and Economic Geography': [],
-        'Environmental Management': [],
-      },
-      'Economics (Social Sciences)': {
-        'International Economics': [],
-        'Economic Development': [],
-      },
-      'Performing Arts (Arts and Sports)': {
-        'Advanced Music': [],
-        'Theatre Production': [],
-      },
-      'Visual Arts (Arts and Sports)': {
-        'Advanced Drawing and Painting': [],
-        'Sculpture and Mixed Media': [],
-        'Digital Arts': [],
-      },
-      'Sports Science (Arts and Sports)': {
-        'Advanced Training': [],
-        'Biomechanics': [],
-      },
-      'Religious Education (CRE Example, Optional)': {
-        'The Bible': [],
-        'Christian Living': [],
-        'Contemporary Issues': [],
-      },
-    },
-    'Grade 12': {
-      'Community Service Learning': {
-        'Capstone Projects': [],
-      },
-      'Mathematics': {
-        'Advanced Calculus': [],
-        'Probability and Statistics': [],
-        'Discrete Maths': [],
-      },
-      'English Language': {
-        'Professional Communication': [],
-        'Advanced Literature': [],
-      },
-      'Kiswahili Language': {
-        'Kusikiliza na Kuzungumza': [],
-        'Kusoma': [],
-      },
-      'Indigenous Language or Foreign Language (French Example)': {
-        'Listening and Speaking': [],
-        'Reading': [],
-        'Writing': [],
-        'Cultural Studies': [],
-      },
-      'Biology (STEM)': {
-        'Advanced Genetics': [],
-        'Applied Ecology': [],
-      },
-      'Chemistry (STEM)': {
-        'Industrial Chemistry': [],
-        'Advanced Organic/Inorganic': [],
-      },
-      'Physics (STEM)': {
-        'Astrophysics/Electronics': [],
-        'Quantum and Relativity': [],
-      },
-      'History and Citizenship (Social Sciences)': {
-        'Global Challenges': [],
-      },
-      'Geography (Social Sciences)': {
-        'Global Geography': [],
-        'Research Projects': [],
-      },
-      'Economics (Social Sciences)': {
-        'Econometrics': [],
-      },
-      'Performing Arts (Arts and Sports)': {
-        'Professional Production': [],
-      },
-      'Visual Arts (Arts and Sports)': {
-        'Professional Art': [],
-      },
-      'Sports Science (Arts and Sports)': {
-        'Elite Performance': [],
-      },
-      'Religious Education (CRE Example, Optional)': {
-        'The Bible': [],
-        'Christian Living': [],
-        'Contemporary Issues': [],
-      },
-    },
-  }) as Record<string, Record<string, Record<string, string[]>>>, []);
 
-  // derive lists for selectors
-  const gradeOptions = useMemo(() => Object.keys(CURRICULUM), [CURRICULUM]);
-  const [grade, setGrade] = useState<string>('Grade 7');
-  const subjectOptions = useMemo(
-    () => (CURRICULUM[grade] ? Object.keys(CURRICULUM[grade]) : []),
-    [CURRICULUM, grade]
-  );
-  const [subject, setSubject] = useState<string>('Mathematics');
-  const topicOptions = useMemo(
-    () => (CURRICULUM[grade]?.[subject] ? Object.keys(CURRICULUM[grade][subject]) : []),
-    [CURRICULUM, grade, subject]
-  );
-  const [topic, setTopic] = useState<string>('');
-  // specification free text instead of subtopic
+  // Load curriculum data from JSON
+  const curriculum = useMemo(() => curriculumData as CurriculumGrade[], []);
+
+  // State for selections
+  const [selectedGradeIndex, setSelectedGradeIndex] = useState<number>(6); // Default to Grade 7
+  const [selectedSubjectIndex, setSelectedSubjectIndex] = useState<number>(0);
+  const [selectedStrandId, setSelectedStrandId] = useState<string>('');
   const [specification, setSpecification] = useState<string>('');
   const [replanNotes, setReplanNotes] = useState<string>('');
   const [totalTokens, setTotalTokens] = useState<number>(12000);
   const [editableTOC, setEditableTOC] = useState<PlanResponsePayload['toc'] | null>(null);
 
-  // Ensure defaults are valid and cascade resets
-  useEffect(() => {
-    // If current subject not in grade, reset to first
-    if (!subjectOptions.includes(subject)) {
-      const nextSubject = subjectOptions[0] || '';
-      setSubject(nextSubject);
-      return; // will re-run for topics on subject change
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grade, subjectOptions.length]);
+  // Derive current selections
+  const currentGrade = useMemo(() => curriculum[selectedGradeIndex], [curriculum, selectedGradeIndex]);
+  const currentSubject = useMemo(() => currentGrade?.subjects[selectedSubjectIndex], [currentGrade, selectedSubjectIndex]);
+  const currentStrand = useMemo(() => 
+    currentSubject?.strands.find(s => s.id === selectedStrandId),
+    [currentSubject, selectedStrandId]
+  );
 
+  // Get display values for API calls
+  const grade = currentGrade?.programme || 'Grade 7';
+  const subject = currentSubject?.name || '';
+  const topic = currentStrand?.name || '';
+  const strandId = currentStrand?.id || '';
+
+  // Build curriculum context for planner
+  const curriculumContext = useMemo(() => {
+    if (!currentStrand) return '';
+    
+    const subtopicsText = currentStrand.subtopics
+      .map((st, i) => `${i + 1}. ${st}`)
+      .join('\n');
+    
+    return `Strand: ${currentStrand.name}
+Subtopics from CBC curriculum:
+${subtopicsText}
+
+Note: These are the official subtopics from the Kenya CBC curriculum. Structure your lesson around these while maintaining pedagogical flow.`;
+  }, [currentStrand]);
+
+  // Ensure defaults are valid when grade changes
   useEffect(() => {
-    if (!topicOptions.includes(topic)) {
-      const nextTopic = topicOptions[0] || '';
-      setTopic(nextTopic);
-      return;
+    if (currentGrade && currentGrade.subjects.length > 0) {
+      // Reset subject to first if current index is invalid
+      if (selectedSubjectIndex >= currentGrade.subjects.length) {
+        setSelectedSubjectIndex(0);
+        setSelectedStrandId('');
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject, topicOptions.length]);
+  }, [selectedGradeIndex, currentGrade, selectedSubjectIndex]);
+
+  // Reset strand when subject changes
+  useEffect(() => {
+    if (currentSubject && currentSubject.strands.length > 0) {
+      // If current strand is not in this subject, reset to first
+      const strandExists = currentSubject.strands.some(s => s.id === selectedStrandId);
+      if (!strandExists) {
+        setSelectedStrandId(currentSubject.strands[0]?.id || '');
+      }
+    }
+  }, [selectedSubjectIndex, currentSubject, selectedStrandId]);
 
   // No subtopic cascading required
   
@@ -866,7 +157,13 @@ export default function LessonFormModal({ open, onClose }: Props) {
 
   const handleGenerateTOC = async () => {
     try {
-      const data = await generateTOC({ grade, subject, topic, specification });
+      const data = await generateTOC({ 
+        grade, 
+        subject, 
+        topic, 
+        specification,
+        curriculumContext 
+      });
       setEditableTOC(data.toc);
     } catch (e) {
       // noop, error shown below
@@ -951,12 +248,12 @@ export default function LessonFormModal({ open, onClose }: Props) {
                 <label className="block text-sm text-white/70 mb-1">Grade</label>
                 <select
                   className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value)}
+                  value={selectedGradeIndex}
+                  onChange={(e) => setSelectedGradeIndex(Number(e.target.value))}
                 >
-                  {gradeOptions.map((g: string) => (
-                    <option key={g} value={g}>
-                      {g}
+                  {curriculum.map((g, idx) => (
+                    <option key={idx} value={idx}>
+                      {g.programme.replace('Kenya Competency-Based Curriculum (CBC) - ', '')}
                     </option>
                   ))}
                 </select>
@@ -966,44 +263,48 @@ export default function LessonFormModal({ open, onClose }: Props) {
                 <label className="block text-sm text-white/70 mb-1">Subject</label>
                 <select
                   className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
+                  value={selectedSubjectIndex}
+                  onChange={(e) => setSelectedSubjectIndex(Number(e.target.value))}
+                  disabled={!currentGrade}
                 >
-                  {subjectOptions.map((s: string) => (
-                    <option key={s} value={s}>
-                      {s}
+                  {currentGrade?.subjects.map((s, idx) => (
+                    <option key={idx} value={idx}>
+                      {s.name}
                     </option>
-                  ))}
+                  )) || <option value="">No subjects</option>}
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm text-white/70 mb-1">Topic</label>
+              <label className="block text-sm text-white/70 mb-1">Strand/Topic</label>
               <select
                 className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
+                value={selectedStrandId}
+                onChange={(e) => setSelectedStrandId(e.target.value)}
+                disabled={!currentSubject}
               >
-                {topicOptions.length === 0 ? (
+                {currentSubject?.strands.length === 0 ? (
                   <option value="" disabled>
-                    No topics available
+                    No strands available
                   </option>
                 ) : (
-                  topicOptions.map((t: string) => (
-                    <option key={t} value={t}>
-                      {t}
+                  currentSubject?.strands.map((strand) => (
+                    <option key={strand.id} value={strand.id}>
+                      {strand.name}
                     </option>
-                  ))
+                  )) || <option value="">Select a strand</option>
                 )}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm text-white/70 mb-1">Specification</label>
+              <label className="block text-sm text-white/70 mb-1">
+                Additional Specification (Optional)
+              </label>
               <textarea
                 className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2 min-h-24 resize-y"
-                placeholder="Describe specifics: focus area, level, goals, constraints (e.g., exam board, duration)."
+                placeholder="Add any specific focus areas, learning objectives, or constraints beyond the curriculum subtopics..."
                 value={specification}
                 onChange={(e) => setSpecification(e.target.value)}
               />

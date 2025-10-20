@@ -9,10 +9,11 @@ import { createPlan } from '@/lib/lessonStore';
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser(req);
-  const body = (await req.json()) as PlanRequestPayload & { persist?: boolean };
-  const { grade, subject, topic, specification, preferences, persist } = body;
+  const body = (await req.json()) as PlanRequestPayload & { persist?: boolean; curriculumContext?: string };
+  const { grade, subject, topic, specification, preferences, persist, curriculumContext: passedContext } = body;
     
-    const context = curriculumContext(grade, subject, topic);
+    // Use passed curriculum context if available, otherwise fall back to default
+    const context = passedContext || curriculumContext(grade, subject, topic);
     
     console.log('[planner] Starting plan generation...', { grade, subject, topic });
     
