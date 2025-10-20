@@ -102,8 +102,13 @@ export async function POST(
         await updateRunStatus(lessonId, runId, 'assembling');
         await addProgressEvent(lessonId, runId, { type: 'assembled', agent: 'assembler' });
         
+        // Refetch subtasks with a small delay to ensure Firestore consistency
+        console.log('[lesson/run] Refetching subtasks to ensure consistency...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+        const freshSubtasks = await getAllSubtasks(lessonId);
+        
         console.log('[lesson/run] Assembling lesson from subtasks...');
-        const assembled = assembleLesson(subtasks);
+        const assembled = assembleLesson(freshSubtasks);
         
         console.log('[lesson/run] Validating assembled lesson...');
         const validation = validateAssembledLesson(assembled);
