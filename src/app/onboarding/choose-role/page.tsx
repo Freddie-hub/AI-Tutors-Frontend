@@ -23,23 +23,15 @@ const ROLE_OPTIONS: RoleOption[] = [
     title: 'Individual Student',
     description:
       'Learn independently with AI-personalised study plans and real-time feedback.',
-    icon: 'student',
+    icon: '🎓',
     fallbackRedirect: '/onboarding/student',
-  },
-  {
-    id: 'institution-admin',
-    title: 'Institution Admin',
-    description:
-      'Manage enrolment, performance tracking, and AI tutor deployment for your organisation.',
-    icon: 'institution',
-    fallbackRedirect: '/onboarding/institution',
   },
   {
     id: 'upskill-individual',
     title: 'Upskill Individual',
     description:
       'Accelerate your career with curated skill paths and adaptive AI learning tools.',
-    icon: 'upskill',
+    icon: '🚀',
     fallbackRedirect: '/onboarding/upskill',
   },
   {
@@ -47,7 +39,7 @@ const ROLE_OPTIONS: RoleOption[] = [
     title: 'Teacher',
     description:
       'Create and manage AI-assisted lessons, monitor student progress, and personalise learning experiences.',
-    icon: 'teacher',
+    icon: '👨‍🏫',
     fallbackRedirect: '/onboarding/teacher',
   },
 ];
@@ -161,7 +153,7 @@ export default function ChooseRolePage() {
         </div>
       )}
 
-      <div className="grid max-w-4xl gap-6 md:grid-cols-4 w-full">
+      <div className="grid max-w-4xl gap-6 md:grid-cols-3 w-full">
         {ROLE_OPTIONS.map((option) => {
           const isSelected = selectedRole === option.id;
           const isCurrentRole = profile?.role === option.id;
