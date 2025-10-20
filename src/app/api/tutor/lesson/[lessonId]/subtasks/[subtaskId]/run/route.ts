@@ -3,7 +3,7 @@ import { requireUser } from '@/lib/serverAuth';
 import { curriculumContext } from '@/lib/curriculum';
 import { getLesson, getSubtask, getAllSubtasks, updateSubtaskStatus, setSubtaskResult, incrementSubtaskAttempts, addProgressEvent } from '@/lib/lessonStore';
 import { getOpenAI, OPENAI_CHAT_MODEL } from '@/lib/ai/openai';
-import { systemTutor, sectionWriterPrompt } from '@/lib/ai/prompts';
+import { systemTutor, systemTutorGCSE, sectionWriterPrompt } from '@/lib/ai/prompts';
 import { extractContinuityContext } from '@/lib/ai/assembler';
 import crypto from 'crypto';
 
@@ -69,6 +69,16 @@ export async function POST(
       }
     }
     
+    // Detect curriculum type from grade
+    const curriculumType = lesson.grade.toLowerCase().includes('cambridge') || 
+                           lesson.grade.toLowerCase().includes('gcse') || 
+                           lesson.grade.toLowerCase().includes('igcse') || 
+                           lesson.grade.toLowerCase().includes('british') || 
+                           lesson.grade.toLowerCase().includes('year') ? 'gcse' : 'cbc';
+    
+    // Use appropriate system prompt
+    const systemPrompt = curriculumType === 'gcse' ? systemTutorGCSE : systemTutor;
+    
     const context = curriculumContext(lesson.grade, lesson.subject, lesson.topic);
     
     console.log('[subtask/run] Calling OpenAI:', {
@@ -77,6 +87,7 @@ export async function POST(
       model: OPENAI_CHAT_MODEL,
       subtaskOrder: subtask.order,
       totalSubtasks,
+      curriculumType,
     });
     
     const openai = getOpenAI();
@@ -85,7 +96,7 @@ export async function POST(
       temperature: 0.6,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: systemTutor },
+        { role: 'system', content: systemPrompt },
         {
           role: 'user',
           content: sectionWriterPrompt({
@@ -100,6 +111,7 @@ export async function POST(
             targetTokens: subtask.targetTokens,
             subtaskOrder: subtask.order,
             totalSubtasks,
+            curriculumType,
           }),
         },
       ],
@@ -169,3 +181,4 @@ export async function POST(
     return new Response(JSON.stringify({ message, error: err?.stack || message }), { status });
   }
 }
+

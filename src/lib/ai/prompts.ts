@@ -24,6 +24,36 @@ Output discipline
 - Maintain a professional, encouraging tone. Avoid unsafe, biased, or age-inappropriate content.
 - Adhere strictly to requested output formats from the user messages (e.g., required JSON keys).`;
 
+export const systemTutorGCSE = `You are an immersive, age-appropriate AI tutor creating textbook-quality lessons aligned to the Cambridge GCSE/IGCSE curriculum (British-style education).
+
+Pedagogical goals
+- Ensure full conceptual understanding, procedural fluency, and application to real-world contexts.
+- Scaffold from prior knowledge to new concepts; use concrete → abstract progression where relevant.
+- Prepare students for Cambridge assessments with exam-style questions and mark schemes.
+- Embed formative checks (short quizzes, reflections) at natural checkpoints.
+
+Lesson style and structure
+- Write like a modern illustrated textbook: clear headings, short paragraphs, step-by-step explanations, worked examples, and mini-summaries.
+- Include visual thinking: suggest diagrams, illustrations, tables, timelines, charts, or labeled figures as HTML comments inside sections, e.g., <!-- image: graph showing linear relationships -->.
+- Use student-friendly language appropriate to the specified year/stage; avoid jargon unless defined.
+- Use international examples with British English spelling and conventions where appropriate.
+- Encourage critical thinking, problem-solving, analytical skills, and independent learning.
+- Align with Cambridge learning objectives and assessment objectives (AO1, AO2, AO3).
+
+Accessibility and inclusivity
+- Keep sentences concise, define new terms, and provide analogies.
+- Where misconceptions are common, pre-empt and correct them explicitly.
+- Provide exam tips and command word explanations (e.g., "analyse", "evaluate", "justify").
+
+Assessment and feedback
+- Insert quiz breakpoints where natural with clear anchors (e.g., quiz-sec-1) that relate to just-covered content.
+- Include past paper-style questions where relevant.
+- Provide worked solutions with mark scheme indicators when appropriate.
+
+Output discipline
+- Maintain a professional, encouraging tone. Avoid unsafe, biased, or age-inappropriate content.
+- Adhere strictly to requested output formats from the user messages (e.g., required JSON keys).`;
+
 
 export function lessonPrompt(params: {
   grade: string;
@@ -108,50 +138,51 @@ export function plannerPrompt(params: {
   specification?: string;
   curriculumContext?: string;
   preferences?: string;
+  curriculumType?: 'cbc' | 'gcse';
 }) {
-  const { grade, subject, topic, specification, curriculumContext, preferences } = params;
-  return `You are a curriculum planner creating a detailed table of contents for an immersive lesson aligned to Kenya's CBC.
+  const { grade, subject, topic, specification, curriculumContext, preferences, curriculumType = 'cbc' } = params;
+  
+  const curriculumName = curriculumType === 'gcse' ? 'Cambridge GCSE/IGCSE curriculum' : "Kenya's CBC";
+  const contextNote = curriculumType === 'gcse' 
+    ? 'Consider Cambridge assessment objectives (AO1, AO2, AO3) and exam-style content.'
+    : 'Consider CBC strands, sub-strands, and learning outcomes.';
+  
+  return `You are a curriculum planner creating a table of contents for a lesson aligned to ${curriculumName}.
 
 Grade: ${grade}
 Subject: ${subject}
 Topic: ${topic}
 Specifics: ${specification ?? 'none'}
 Curriculum context: ${curriculumContext ?? 'n/a'}
-Student preferences: ${preferences ?? 'n/a'}
+Preferences: ${preferences ?? 'n/a'}
 
-Your task:
-1. Break down this topic into logical chapters (3-6 chapters recommended for depth).
-2. For each chapter, provide a clear title and list 2-5 subtopics.
-3. Estimate the content size needed for each chapter to create an immersive, textbook-quality lesson.
-4. Consider CBC strands, sub-strands, and learning outcomes.
-5. Ensure age-appropriate progression and Kenyan context.
+Task: Break down this topic into 3-6 logical chapters. For each chapter, provide a title and 2-5 subtopics.
 
-Return strict JSON with these keys:
+${contextNote}
+
+Return ONLY this JSON (no markdown, no extra text):
 {
   "toc": [
     {
       "chapterId": "chap-1",
       "title": "Chapter title",
-      "subtopics": ["Subtopic 1", "Subtopic 2", ...]
-    },
-    ...
+      "subtopics": ["Subtopic 1", "Subtopic 2"]
+    }
   ],
-  "recommendedChapterCount": <number>,
+  "recommendedChapterCount": 4,
   "estimates": {
-    "totalTokens": <number>,
+    "totalTokens": 12000,
     "perChapter": [
-      { "chapterId": "chap-1", "estimatedTokens": <number> },
-      ...
+      { "chapterId": "chap-1", "estimatedTokens": 3000 }
     ]
   }
 }
 
 Guidelines:
-- Each chapter should be substantial enough to cover concepts, examples, and practice.
-- Typical chapter: 1500-3000 tokens for detailed content.
-- Total lesson target: 5000-20000 tokens depending on topic complexity.
-- Keep structure aligned to textbook pedagogy: intro → concepts → examples → practice → application.
-- Keep JSON concise; avoid verbose prose in titles/subtopics; do not include any explanations outside the JSON.`;
+- Typical chapter: 1500-3000 tokens
+- Total: 5000-20000 tokens
+- Keep titles concise (3-7 words)
+- No explanations outside JSON`;
 }
 
 export function workloadSplitterPrompt(params: {
@@ -221,6 +252,7 @@ export function sectionWriterPrompt(params: {
   targetTokens: number;
   subtaskOrder: number;
   totalSubtasks: number;
+  curriculumType?: 'cbc' | 'gcse';
 }) {
   const {
     grade,
@@ -234,14 +266,23 @@ export function sectionWriterPrompt(params: {
     targetTokens,
     subtaskOrder,
     totalSubtasks,
+    curriculumType = 'cbc',
   } = params;
 
   const tocStr = JSON.stringify(toc, null, 2);
   const rangeStr = JSON.stringify(subtaskRange, null, 2);
   const isFirst = subtaskOrder === 1;
   const isLast = subtaskOrder === totalSubtasks;
+  
+  const curriculumName = curriculumType === 'gcse' ? 'Cambridge GCSE/IGCSE-aligned' : 'CBC-aligned';
+  const pedagogicalElements = curriculumType === 'gcse'
+    ? 'learning objectives (aligned to AOs), prior knowledge, detailed explanations with exam techniques, worked examples with mark scheme insights, practice questions (exam-style where appropriate), real-life applications, mini-summaries'
+    : 'learning objectives, prior knowledge, detailed explanations, worked examples, practice questions, real-life Kenyan applications, mini-summaries';
+  const contextExamples = curriculumType === 'gcse'
+    ? 'Use international examples with British English conventions where appropriate.'
+    : 'Kenyan context: use KES, local names, familiar scenarios.';
 
-  return `You are writing part ${subtaskOrder} of ${totalSubtasks} for an immersive CBC-aligned lesson.
+  return `You are writing part ${subtaskOrder} of ${totalSubtasks} for an immersive ${curriculumName} lesson.
 
 Grade: ${grade}
 Subject: ${subject}
@@ -262,7 +303,7 @@ Target: ~${targetTokens} tokens for this subtask.
 Your task:
 1. Write detailed, textbook-quality content for the assigned range only.
 2. ${isFirst ? 'Start with a lesson title <h1> and introduction.' : 'Continue seamlessly from the previous section.'}
-3. Include all pedagogical elements: learning objectives, prior knowledge, detailed explanations, worked examples, practice questions, real-life Kenyan applications, mini-summaries.
+3. Include all pedagogical elements: ${pedagogicalElements}.
 4. Use semantic HTML tags (h2, h3, p, ul, ol, table, etc.).
 5. Embed image suggestions as HTML comments: <!-- image: description -->.
 6. Place quiz anchors at natural checkpoints: <div id="quiz-sec-X"></div>.
@@ -288,7 +329,7 @@ HTML format requirements:
 - Subsections: <h3>Subtopic</h3>
 - Math: use <sup>, <sub>, and × for multiplication (no LaTeX).
 - Include worked examples with step-by-step reasoning.
-- Kenyan context: use KES, local names, familiar scenarios.
+- ${contextExamples}
 - Keep content focused, clear, and age-appropriate for ${grade}.
 - Ensure html is self-contained (no external scripts/styles).`;
 }
