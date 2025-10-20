@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks';
+import type { AgentType } from '@/lib/ai/types';
 
 export type Lesson = {
   id: string;
@@ -22,6 +23,16 @@ type LessonContextType = {
   loadLesson: (lesson: Lesson) => void;
   loadSavedLessons: () => Promise<void>;
   isLoading: boolean;
+  // Deprecated: use generationStatus instead
+  isGenerating: boolean;
+  setIsGenerating: React.Dispatch<React.SetStateAction<boolean>>;
+  // Shared generation state for multi-agent pipeline
+  generationStatus: 'idle' | 'planning' | 'accepting' | 'splitting' | 'generating' | 'completed' | 'error';
+  setGenerationStatus: React.Dispatch<React.SetStateAction<'idle' | 'planning' | 'accepting' | 'splitting' | 'generating' | 'completed' | 'error'>>;
+  currentAgent: AgentType | null;
+  setCurrentAgent: React.Dispatch<React.SetStateAction<AgentType | null>>;
+  generationProgress: { current: number; total: number };
+  setGenerationProgress: React.Dispatch<React.SetStateAction<{ current: number; total: number }>>;
 };
 
 const LessonContext = createContext<LessonContextType | null>(null);
@@ -30,6 +41,10 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
   const [lesson, setLesson] = useState<Lesson>(null);
   const [savedLessons, setSavedLessons] = useState<Lesson[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStatus, setGenerationStatus] = useState<'idle' | 'planning' | 'accepting' | 'splitting' | 'generating' | 'completed' | 'error'>('idle');
+  const [currentAgent, setCurrentAgent] = useState<AgentType | null>(null);
+  const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
   const { user } = useAuth();
 
   // Load saved lessons when user is available
@@ -100,7 +115,15 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
         saveLesson, 
         loadLesson,
         loadSavedLessons,
-        isLoading 
+        isLoading,
+        isGenerating,
+        setIsGenerating,
+        generationStatus,
+        setGenerationStatus,
+        currentAgent,
+        setCurrentAgent,
+        generationProgress,
+        setGenerationProgress,
       }}
     >
       {children}

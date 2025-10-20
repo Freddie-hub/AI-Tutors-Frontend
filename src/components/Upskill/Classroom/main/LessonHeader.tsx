@@ -3,7 +3,11 @@
 import React from 'react';
 import { useLesson } from '../context/LessonContext';
 
-export default function LessonHeader() {
+type Props = {
+  onCreateNewLesson?: () => void;
+};
+
+export default function LessonHeader({ onCreateNewLesson }: Props) {
   const { lesson } = useLesson();
   if (!lesson) return null;
 
@@ -22,9 +26,19 @@ export default function LessonHeader() {
             <p className="text-white/60 text-sm">{lesson.specification}</p>
           )}
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-          <div className="h-2 w-2 rounded-full bg-emerald-400"></div>
-          <span className="text-emerald-400 text-xs font-semibold">Active</span>
+        <div className="flex items-center gap-2">
+          {onCreateNewLesson && (
+            <button
+              onClick={onCreateNewLesson}
+              className="px-3 py-1.5 rounded-lg bg-[#7c3aed]/10 border border-[#7c3aed]/30 text-[#c4b5fd] text-xs font-semibold hover:bg-[#7c3aed]/20 transition-colors"
+            >
+              New Lesson
+            </button>
+          )}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+            <div className="h-2 w-2 rounded-full bg-emerald-400"></div>
+            <span className="text-emerald-400 text-xs font-semibold">Active</span>
+          </div>
         </div>
       </div>
     </div>

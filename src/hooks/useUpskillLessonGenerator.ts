@@ -77,8 +77,9 @@ export function useUpskillLessonGenerator(options: UseUpskillLessonGeneratorOpti
       }
 
       const data: PlanResponsePayload = await response.json();
-      if (data.planId) setPlanId(data.planId);
+      console.log('[useUpskillLessonGenerator] Plan generated:', { tocLength: data.toc?.length });
       setToc(data.toc);
+      // Set status back to idle so TOC review can be shown
       setStatus('idle');
       setCurrentAgent(null);
       return data;
@@ -93,6 +94,7 @@ export function useUpskillLessonGenerator(options: UseUpskillLessonGeneratorOpti
   }, [options]);
 
   const acceptPlan = useCallback(async () => {
+    console.log('[useUpskillLessonGenerator] acceptPlan called with planId:', planId);
     if (!planId) throw new Error('No plan to accept');
     try {
       setStatus('accepting');
@@ -108,9 +110,11 @@ export function useUpskillLessonGenerator(options: UseUpskillLessonGeneratorOpti
         throw new Error(errorData.message || 'Failed to accept plan');
       }
       const data = await response.json();
+      console.log('[useUpskillLessonGenerator] Plan accepted:', { lessonId: data.lessonId });
       setLessonId(data.lessonId);
       return data.lessonId as string;
     } catch (err: any) {
+      console.error('[useUpskillLessonGenerator] Accept plan error:', err);
       setError(err.message);
       setStatus('error');
       options.onError?.(err.message);
@@ -265,11 +269,58 @@ export function useUpskillLessonGenerator(options: UseUpskillLessonGeneratorOpti
   }, [lessonId, runId, cleanup]);
 
   const generateLesson = useCallback(async (params: GenerateUpskillParams) => {
-    const plan = await generatePlan(params);
-    const id = await acceptPlan();
-    await splitWorkload(params.totalTokens);
-    return startGeneration(id);
-  }, [generatePlan, acceptPlan, splitWorkload, startGeneration]);
+    try {
+      // Step 1: Generate Plan (TOC)
+      const plan = await generatePlan(params);
+      console.log('[useUpskillLessonGenerator] generateLesson - plan returned:', { tocLength: plan.toc?.length });
+      
+      // Validate TOC
+      if (!plan.toc || !Array.isArray(plan.toc) || plan.toc.length === 0) {
+        throw new Error('Invalid TOC returned from planner');
+      }
+      
+      // Step 2: Accept TOC directly (creates plan and lesson in one step)
+      setStatus('accepting');
+      setError(null);
+      const token = await getAuthToken();
+      const acceptResponse = await fetch('/api/upskill/plan/accept', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goal: params.goal,
+          domain: params.domain,
+          currentLevel: params.currentLevel,
+          timeline: params.timeline,
+          hoursPerWeek: params.hoursPerWeek,
+          preferences: params.preferences,
+          motivation: params.motivation,
+          toc: plan.toc,
+        }),
+      });
+      
+      if (!acceptResponse.ok) {
+        const errorData = await acceptResponse.json();
+        throw new Error(errorData.message || 'Failed to accept plan');
+      }
+      
+      const acceptData = await acceptResponse.json();
+      const newLessonId = acceptData.lessonId;
+      console.log('[useUpskillLessonGenerator] generateLesson - plan accepted:', { lessonId: newLessonId });
+      setLessonId(newLessonId);
+      
+      // Step 3: Split workload
+      await splitWorkload(params.totalTokens, newLessonId);
+      
+      // Step 4: Start generation
+      return await startGeneration(newLessonId);
+    } catch (err: any) {
+      console.error('[useUpskillLessonGenerator] generateLesson error:', err);
+      setError(err.message);
+      setStatus('error');
+      options.onError?.(err.message);
+      throw err;
+    }
+  }, [generatePlan, splitWorkload, startGeneration, options]);
 
   return {
     status,
