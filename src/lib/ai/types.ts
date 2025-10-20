@@ -134,6 +134,18 @@ export interface PlanRequestPayload {
   preferences?: string;
 }
 
+// Upskill goal-based planning (no formal curriculum)
+export interface UpskillPlanRequestPayload {
+  uid?: string;
+  goal: string; // e.g., "Learn Machine Learning in 3 months"
+  domain?: string; // e.g., "Machine Learning"
+  currentLevel?: string; // free-form assessment like "knows Python basics"
+  timeline?: string; // e.g., "3 months", "1 night"
+  hoursPerWeek?: number; // optional pacing signal
+  preferences?: string; // learning style or constraints
+  motivation?: string; // optional context
+}
+
 export interface PlanResponsePayload {
   planId?: string;
   toc: TOCChapter[];
@@ -233,9 +245,9 @@ export type LessonStatus =
 export interface Lesson {
   lessonId: string;
   uid: string;
-  grade: string;
-  subject: string;
-  topic: string;
+  grade: string; // For Upskill, set to 'Upskill' (or similar)
+  subject: string; // For Upskill, map from domain
+  topic: string; // For Upskill, map from goal or milestone topic
   specification?: string;
   status: LessonStatus;
   toc: TOCChapter[];
@@ -244,6 +256,10 @@ export interface Lesson {
     totalTokens: number;
     perChapter: TOCEstimate[];
   };
+  // Optional Upskill metadata (ignored by CBC/GCSE flows)
+  domain?: string;
+  targetAudience?: 'beginner' | 'intermediate' | 'advanced';
+  timeConstraint?: string; // e.g., "3 months"
   final?: {
     outline: string[];
     sections: LessonSection[];

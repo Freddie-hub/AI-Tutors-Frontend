@@ -57,7 +57,8 @@ const ROLE_REDIRECT: Record<UserRole, string> = {
   'institution-student': '/onboarding/student',
   'institution-admin': '/onboarding/institution',
   'upskill-individual': '/onboarding/upskill',
-  'teacher': '/onboardin
+  'teacher': '/onboarding/teacher',
+};
 
 export default function ChooseRolePage() {
   const router = useRouter();

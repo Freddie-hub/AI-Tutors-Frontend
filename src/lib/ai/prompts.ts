@@ -54,6 +54,29 @@ Output discipline
 - Maintain a professional, encouraging tone. Avoid unsafe, biased, or age-inappropriate content.
 - Adhere strictly to requested output formats from the user messages (e.g., required JSON keys).`;
 
+// Upskill: professional, job-ready, project-first instruction for any domain
+export const systemTutorUpskill = `You are a world-class expert instructor and mentor crafting rigorous, job-ready learning materials for self-directed learners.
+
+Teaching principles
+- Engineer professional-grade, industry-relevant explanations with clarity and depth.
+- Blend conceptual mastery with hands-on practice, projects, and troubleshooting.
+- Optimize for employability: real-world workflows, best practices, common pitfalls.
+- Respect time constraints: offer quick wins, progressive complexity, and checkpoints.
+
+Style and structure
+- Write like a senior staff engineer or PhD professor who teaches practitioners.
+- Use a clear outline, precise terminology (define when introduced), and evidence-based pedagogy.
+- Provide runnable examples (where applicable), step-by-step guides, and decision frameworks.
+- Include resource recommendations (official docs, tools, communities) when appropriate.
+
+Assessment and reflection
+- Include short knowledge checks at natural points (with anchors like quiz-sec-1).
+- Encourage reflection and metacognitive strategies (“what to watch out for”, “how to debug”).
+
+Output discipline
+- Maintain a professional, inclusive tone.
+- Return exactly the requested formats from the user messages (strict JSON when requested).`;
+
 
 export function lessonPrompt(params: {
   grade: string;
@@ -138,14 +161,16 @@ export function plannerPrompt(params: {
   specification?: string;
   curriculumContext?: string;
   preferences?: string;
-  curriculumType?: 'cbc' | 'gcse';
+  curriculumType?: 'cbc' | 'gcse' | 'upskill';
 }) {
   const { grade, subject, topic, specification, curriculumContext, preferences, curriculumType = 'cbc' } = params;
   
-  const curriculumName = curriculumType === 'gcse' ? 'Cambridge GCSE/IGCSE curriculum' : "Kenya's CBC";
-  const contextNote = curriculumType === 'gcse' 
+  const curriculumName = curriculumType === 'gcse' ? 'Cambridge GCSE/IGCSE curriculum' : (curriculumType === 'upskill' ? 'self-directed, job-ready learning (no formal curriculum)' : "Kenya's CBC");
+  const contextNote = curriculumType === 'gcse'
     ? 'Consider Cambridge assessment objectives (AO1, AO2, AO3) and exam-style content.'
-    : 'Consider CBC strands, sub-strands, and learning outcomes.';
+    : (curriculumType === 'upskill'
+      ? 'Consider employability, practical projects, and professional best practices (no curriculum constraints).'
+      : 'Consider CBC strands, sub-strands, and learning outcomes.');
   
   return `You are a curriculum planner creating a table of contents for a lesson aligned to ${curriculumName}.
 
@@ -252,7 +277,7 @@ export function sectionWriterPrompt(params: {
   targetTokens: number;
   subtaskOrder: number;
   totalSubtasks: number;
-  curriculumType?: 'cbc' | 'gcse';
+  curriculumType?: 'cbc' | 'gcse' | 'upskill';
 }) {
   const {
     grade,
@@ -274,13 +299,17 @@ export function sectionWriterPrompt(params: {
   const isFirst = subtaskOrder === 1;
   const isLast = subtaskOrder === totalSubtasks;
   
-  const curriculumName = curriculumType === 'gcse' ? 'Cambridge GCSE/IGCSE-aligned' : 'CBC-aligned';
+  const curriculumName = curriculumType === 'gcse' ? 'Cambridge GCSE/IGCSE-aligned' : (curriculumType === 'upskill' ? 'job-ready, professional' : 'CBC-aligned');
   const pedagogicalElements = curriculumType === 'gcse'
     ? 'learning objectives (aligned to AOs), prior knowledge, detailed explanations with exam techniques, worked examples with mark scheme insights, practice questions (exam-style where appropriate), real-life applications, mini-summaries'
-    : 'learning objectives, prior knowledge, detailed explanations, worked examples, practice questions, real-life Kenyan applications, mini-summaries';
+    : (curriculumType === 'upskill'
+      ? 'clear objectives, prior knowledge activation, deep conceptual coverage, hands-on tasks or projects, realistic workflows, troubleshooting, best practices, practice questions, mini-summaries'
+      : 'learning objectives, prior knowledge, detailed explanations, worked examples, practice questions, real-life Kenyan applications, mini-summaries');
   const contextExamples = curriculumType === 'gcse'
     ? 'Use international examples with British English conventions where appropriate.'
-    : 'Kenyan context: use KES, local names, familiar scenarios.';
+    : (curriculumType === 'upskill'
+      ? 'Use industry-relevant, real-world examples and toolchains (clearly labeled).'
+      : 'Kenyan context: use KES, local names, familiar scenarios.');
 
   return `You are writing part ${subtaskOrder} of ${totalSubtasks} for an immersive ${curriculumName} lesson.
 
@@ -332,4 +361,113 @@ HTML format requirements:
 - ${contextExamples}
 - Keep content focused, clear, and age-appropriate for ${grade}.
 - Ensure html is self-contained (no external scripts/styles).`;
+}
+
+// ============================
+// Upskill: Goal-based Planning & Writing
+// ============================
+
+export function upskillPlannerPrompt(params: {
+  goal: string;
+  domain?: string;
+  currentLevel?: string;
+  timeline?: string; // e.g., "3 months", "1 night"
+  hoursPerWeek?: number;
+  preferences?: string;
+  motivation?: string;
+}) {
+  const { goal, domain, currentLevel, timeline, hoursPerWeek, preferences, motivation } = params;
+  return `Design a realistic, job-ready learning plan (no formal curriculum) from the user's goal.
+
+Goal: ${goal}
+Domain: ${domain ?? 'general'}
+Current level: ${currentLevel ?? 'unspecified'}
+Timeline: ${timeline ?? 'unspecified'}
+Available time: ${hoursPerWeek ?? 'unspecified'} hours/week
+Preferences: ${preferences ?? 'none'}
+Motivation/Context: ${motivation ?? 'none'}
+
+Your task:
+1) Break the path into 3–8 chapters (or milestones) with concise titles and 2–6 subtopics each.
+2) Balance depth vs. time; prioritize must-know before nice-to-know.
+3) Include practical orientation (projects, exercises, deliverables) where suitable.
+4) Estimate total tokens (or effort) and per-chapter budget.
+
+Return STRICT JSON ONLY (no extra commentary):
+{
+  "toc": [ { "chapterId": "chap-1", "title": "...", "subtopics": ["...", "..."] } ],
+  "recommendedChapterCount": <number>,
+  "estimates": { "totalTokens": <number>, "perChapter": [ { "chapterId": "chap-1", "estimatedTokens": <number> } ] }
+}`;
+}
+
+export function upskillSectionWriterPrompt(params: {
+  topic: string; // derived from goal or milestone
+  domain?: string;
+  userLevel?: string;
+  timeConstraint?: string;
+  learningStyle?: string;
+  toc: Array<{ chapterId: string; title: string; subtopics: string[] }>;
+  subtaskRange: {
+    startChapterId: string;
+    endChapterId: string;
+    startSubtopicIndex?: number;
+    endSubtopicIndex?: number;
+  };
+  previousContext?: string;
+  targetTokens: number;
+  subtaskOrder: number;
+  totalSubtasks: number;
+}) {
+  const {
+    topic,
+    domain,
+    userLevel,
+    timeConstraint,
+    learningStyle,
+    toc,
+    subtaskRange,
+    previousContext,
+    targetTokens,
+    subtaskOrder,
+    totalSubtasks,
+  } = params;
+
+  const tocStr = JSON.stringify(toc, null, 2);
+  const rangeStr = JSON.stringify(subtaskRange, null, 2);
+  const isFirst = subtaskOrder === 1;
+  const isLast = subtaskOrder === totalSubtasks;
+
+  return `You are writing part ${subtaskOrder} of ${totalSubtasks} of a professional, job-ready lesson.
+
+Topic: ${topic}
+Domain: ${domain ?? 'general'}
+Learner Level: ${userLevel ?? 'unspecified'}
+Learning Style: ${learningStyle ?? 'unspecified'}
+${timeConstraint ? `Time Constraint: ${timeConstraint}` : ''}
+
+Full TOC:
+${tocStr}
+
+Assigned range (part ${subtaskOrder}/${totalSubtasks}):
+${rangeStr}
+
+${previousContext ? `Previous content summary:\n${previousContext}\n` : ''}
+
+Target: ~${targetTokens} tokens for this subtask.
+
+Your task:
+1. Write rigorous, practitioner-focused content for the assigned range only.
+2. ${isFirst ? 'Start with <h1> title and a concise, motivating intro.' : 'Continue seamlessly from the previous section.'}
+3. Include: clear objectives, conceptual depth, hands-on steps, runnable/code examples (if applicable), best practices, troubleshooting, decision frameworks.
+4. Use semantic HTML (h2/h3, p, ul/ol, table, code/pre, figure/figcaption) and include image suggestions as HTML comments: <!-- image: description -->.
+5. Insert quiz anchors at natural checkpoints: <div id="quiz-sec-X"></div>.
+6. ${isLast ? 'Conclude with a comprehensive summary and next steps (projects or further reading).' : 'End at a natural break point for continuity.'}
+
+Return STRICT JSON:
+{
+  "outlineDelta": ["..."],
+  "sections": [ { "id": "sec-X-Y", "title": "...", "html": "<h2 id='chap-X'>...</h2>...", "quizAnchorId": "quiz-sec-X" } ],
+  "contentChunk": "<h2>...</h2>..."
+}`;
 }
