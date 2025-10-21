@@ -9,8 +9,16 @@ export default function LessonContent() {
 
   // Prepare sanitized HTML once per content change
   const { formattedHtml, toc } = useMemo(() => {
-    const html = lesson?.content?.trim();
+    let html = lesson?.content?.trim();
     if (!html) return { formattedHtml: '', toc: [] as Array<{ id: string; title: string; level: number }> };
+
+    // Remove stray markdown markers like **bold** or *italic* if present in raw content
+    // Convert common markdown emphasis to plain text to avoid visible asterisks
+    html = html
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/_([^_]+)_/g, '$1');
 
     // 1) Sanitize incoming HTML
     const safe = sanitizeHtml(html);

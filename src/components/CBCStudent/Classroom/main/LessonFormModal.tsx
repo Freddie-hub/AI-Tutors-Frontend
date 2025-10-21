@@ -33,7 +33,7 @@ type CurriculumGrade = {
 };
 
 export default function LessonFormModal({ open, onClose }: Props) {
-  const { setLesson, setGenerationStatus, setCurrentAgent: setCtxAgent, setGenerationProgress } = useLesson();
+  const { setLesson, setGenerationStatus, setCurrentAgent: setCtxAgent, setGenerationProgress, saveLesson } = useLesson();
   const {
     status,
     error,
@@ -136,17 +136,30 @@ Note: These are the official subtopics from the Kenya CBC curriculum. Structure 
   // When generation completes, persist lesson into context and close
   useEffect(() => {
     if (status === 'completed' && final && lessonId) {
-      setLesson({
+      const toSave = {
         id: lessonId,
         grade,
         subject,
         topic,
         specification,
         content: final.content,
-      });
-      onClose();
+      } as const;
+
+      // Update context immediately for UI
+      setLesson(toSave as any);
+
+      // Persist immediately (auto-save will dedupe if it also triggers)
+      (async () => {
+        try {
+          await saveLesson(toSave as any);
+        } catch {
+          // ignore; errors are logged in saveLesson
+        } finally {
+          onClose();
+        }
+      })();
     }
-  }, [status, final, lessonId, setLesson, grade, subject, topic, specification, onClose]);
+  }, [status, final, lessonId, setLesson, grade, subject, topic, specification, onClose, saveLesson]);
 
   // Reset state when opening modal to avoid stale errors/status carrying over
   useEffect(() => {

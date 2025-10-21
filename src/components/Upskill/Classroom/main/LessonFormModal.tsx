@@ -13,7 +13,7 @@ type Props = {
 };
 
 export default function LessonFormModal({ open, onClose }: Props) {
-  const { setLesson, setGenerationStatus, setCurrentAgent: setCtxAgent, setGenerationProgress } = useLesson();
+  const { setLesson, setGenerationStatus, setCurrentAgent: setCtxAgent, setGenerationProgress, saveLesson } = useLesson();
   const { 
     generatePlan,
     acceptPlan,
@@ -87,10 +87,10 @@ export default function LessonFormModal({ open, onClose }: Props) {
     }
   }, [open]);
 
-  // When generation completes, persist lesson into context and close
+  // When generation completes, persist lesson into context and save
   useEffect(() => {
     if (status === 'completed' && final && lessonId) {
-      setLesson({
+      const toSave = {
         id: lessonId,
         grade: 'Upskill',
         subject: domain || 'General',
@@ -99,10 +99,12 @@ export default function LessonFormModal({ open, onClose }: Props) {
           .filter(Boolean)
           .join(' | '),
         content: final?.content,
-      });
+      } as const;
+      setLesson(toSave);
+      saveLesson(toSave as any).catch(() => {});
       onClose();
     }
-  }, [status, final, lessonId, setLesson, goal, domain, currentLevel, timeline, hoursPerWeek, preferences, onClose]);
+  }, [status, final, lessonId, setLesson, saveLesson, goal, domain, currentLevel, timeline, hoursPerWeek, preferences, onClose]);
 
   if (!open) return null;
 
@@ -349,7 +351,7 @@ export default function LessonFormModal({ open, onClose }: Props) {
               </div>
               <div className="w-full bg-[#0E0E10] rounded-full h-2">
                 <div
-                  className="bg-[#A855F7] h-2 rounded-full transition-all duration-300"
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
                 />
               </div>

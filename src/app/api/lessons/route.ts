@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     const uid = decodedToken.uid;
 
     const body = await req.json();
-    const { grade, subject, topic, specification, content } = body || {};
+  let { grade, subject, topic, specification, content } = body || {};
 
     // Validate required fields
     if (!grade || !subject || !topic) {
@@ -97,6 +97,15 @@ export async function POST(req: NextRequest) {
         { success: false, message: 'Missing required fields: grade, subject, topic' },
         { status: 400 }
       );
+    }
+
+    // Normalize: strip common markdown emphasis markers from content to avoid stray asterisks
+    if (typeof content === 'string') {
+      content = content
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        .replace(/_([^_]+)_/g, '$1');
     }
 
     // Create lesson document

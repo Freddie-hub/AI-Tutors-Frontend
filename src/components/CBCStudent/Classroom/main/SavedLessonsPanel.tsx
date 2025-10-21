@@ -53,7 +53,7 @@ export default function SavedLessonsPanel({ onLessonLoad }: Props) {
           placeholder="Search by topic, subject, or grade..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:border-[#7c3aed]/50 focus:ring-2 focus:ring-[#7c3aed]/20 transition-all"
+          className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all"
         />
       </div>
 
@@ -92,16 +92,16 @@ export default function SavedLessonsPanel({ onLessonLoad }: Props) {
             return (
               <div
                 key={lesson.id}
-                className="group bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/8 hover:border-[#7c3aed]/30 transition-all cursor-pointer"
+                className="group bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/8 hover:border-blue-400/30 transition-all cursor-pointer"
                 onClick={() => handleLoadLesson(lesson)}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-semibold text-base mb-1 truncate group-hover:text-[#c4b5fd] transition-colors">
+                    <h3 className="text-white font-semibold text-base mb-1 truncate group-hover:text-blue-300 transition-colors">
                       {lesson.topic}
                     </h3>
                     <div className="flex items-center gap-2 text-xs text-white/50 mb-2">
-                      <span className="px-2 py-0.5 rounded-md bg-[#7c3aed]/10 text-[#c4b5fd] border border-[#7c3aed]/20">
+                      <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20">
                         {lesson.grade}
                       </span>
                       <span>•</span>
@@ -133,7 +133,7 @@ export default function SavedLessonsPanel({ onLessonLoad }: Props) {
                     )}
                   </div>
                   <Button
-                    className="bg-[#7c3aed]/10 hover:bg-[#7c3aed]/20 text-[#c4b5fd] border border-[#7c3aed]/30 px-3 py-1.5 text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                    className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1.5 text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleLoadLesson(lesson);

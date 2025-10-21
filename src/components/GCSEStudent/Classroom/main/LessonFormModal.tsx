@@ -34,7 +34,7 @@ type CurriculumYear = {
 };
 
 export default function LessonFormModal({ open, onClose }: Props) {
-  const { setLesson, setGenerationStatus, setCurrentAgent: setCtxAgent, setGenerationProgress } = useLesson();
+  const { setLesson, setGenerationStatus, setCurrentAgent: setCtxAgent, setGenerationProgress, saveLesson } = useLesson();
   const {
     status,
     error,
@@ -134,20 +134,23 @@ Note: These are the official ${contentLabel.toLowerCase()} from the Cambridge cu
     }
   }, [selectedSubjectIndex, currentSubject, selectedStrandId]);
 
-  // When generation completes, persist lesson into context and close
+  // When generation completes, persist lesson into context and save
   useEffect(() => {
     if (status === 'completed' && final && lessonId) {
-      setLesson({
+      const toSave = {
         id: lessonId,
         grade,
         subject,
         topic,
         specification,
         content: final.content,
-      });
+      } as const;
+      setLesson(toSave);
+      // fire-and-forget save (deduped in context)
+      saveLesson(toSave as any).catch(() => {});
       onClose();
     }
-  }, [status, final, lessonId, setLesson, grade, subject, topic, specification, onClose]);
+  }, [status, final, lessonId, setLesson, saveLesson, grade, subject, topic, specification, onClose]);
 
   // Mirror status/agent to context so other components can react
   useEffect(() => {
@@ -330,7 +333,7 @@ Note: These are the official ${contentLabel.toLowerCase()} from the Cambridge cu
                 <Button onClick={onClose} className="bg-transparent border border-white/10 hover:bg-white/5">
                   Cancel
                 </Button>
-                <Button onClick={handleGenerateTOC} className="bg-[#A855F7] hover:bg-[#9333EA] text-white shadow-[0_0_10px_rgba(168,85,247,0.15)]">
+                <Button onClick={handleGenerateTOC} className="bg-blue-600 hover:bg-blue-700 text-white shadow-[0_0_10px_rgba(59,130,246,0.15)]">
                   Generate Table of Contents
                 </Button>
               </div>
