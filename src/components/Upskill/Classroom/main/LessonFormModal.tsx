@@ -91,6 +91,8 @@ export default function LessonFormModal({ open, onClose }: Props) {
   const savedOnceRef = useRef<string | null>(null);
   useEffect(() => {
     if (status !== 'completed' || !final || !lessonId) return;
+    const contentText = (final?.content || '').trim();
+    if (contentText.length < 60) return;
     if (savedOnceRef.current === lessonId) return;
     savedOnceRef.current = lessonId;
 
@@ -102,7 +104,7 @@ export default function LessonFormModal({ open, onClose }: Props) {
       specification: [currentLevel && `Level: ${currentLevel}`, timeline && `Timeline: ${timeline}`, typeof hoursPerWeek === 'number' && `~${hoursPerWeek} h/wk`, preferences && `Prefs: ${preferences}`]
         .filter(Boolean)
         .join(' | '),
-      content: final?.content,
+      content: contentText,
     } as const;
     setLesson(toSave);
     saveLesson(toSave as any).catch(() => {});

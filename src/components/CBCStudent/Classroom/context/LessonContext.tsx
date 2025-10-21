@@ -83,13 +83,19 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
     if (!lessonToSave || !user?.uid) return;
 
     try {
+      // Do not save if content is missing or trivially short (avoids saving placeholders)
+      const contentText = (lessonToSave.content || '').trim();
+      if (contentText.length < 60) {
+        return;
+      }
+
       // Avoid duplicates: if a lesson with same identity/content already exists, skip
       const exists = savedLessons.some((l) =>
         l &&
         l.grade === lessonToSave.grade &&
         l.subject === lessonToSave.subject &&
         l.topic === lessonToSave.topic &&
-        (l.content?.trim() || '') === (lessonToSave.content?.trim() || '')
+        (l.content?.trim() || '') === contentText
       );
       if (exists) return;
 
@@ -99,7 +105,7 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
         subject: lessonToSave.subject,
         topic: lessonToSave.topic,
         specification: lessonToSave.specification || '',
-        content: lessonToSave.content || '',
+        content: contentText,
       });
       
       if (response.success) {

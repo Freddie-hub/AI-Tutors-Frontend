@@ -137,6 +137,9 @@ Note: These are the official subtopics from the Kenya CBC curriculum. Structure 
   const savedOnceRef = useRef<string | null>(null);
   useEffect(() => {
     if (status !== 'completed' || !final || !lessonId) return;
+    // guard: only save when we have real content (prevents placeholder saves)
+    const contentText = (final?.content || '').trim();
+    if (contentText.length < 60) return;
     if (savedOnceRef.current === lessonId) return; // already handled
     savedOnceRef.current = lessonId;
 
@@ -146,7 +149,7 @@ Note: These are the official subtopics from the Kenya CBC curriculum. Structure 
       subject,
       topic,
       specification,
-      content: final.content,
+      content: contentText,
     } as const;
 
     // Update context immediately for UI

@@ -138,6 +138,8 @@ Note: These are the official ${contentLabel.toLowerCase()} from the Cambridge cu
   const savedOnceRef = useRef<string | null>(null);
   useEffect(() => {
     if (status !== 'completed' || !final || !lessonId) return;
+    const contentText = (final?.content || '').trim();
+    if (contentText.length < 60) return;
     if (savedOnceRef.current === lessonId) return;
     savedOnceRef.current = lessonId;
 
@@ -147,7 +149,7 @@ Note: These are the official ${contentLabel.toLowerCase()} from the Cambridge cu
       subject,
       topic,
       specification,
-      content: final.content,
+      content: contentText,
     } as const;
     setLesson(toSave);
     // fire-and-forget save (deduped in context)
