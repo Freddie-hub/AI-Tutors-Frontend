@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Button from '@/components/ui/Button';
 import { useLesson } from '../context/LessonContext';
 import Card from '@/components/CBCStudent/shared/Card';
@@ -133,33 +133,38 @@ Note: These are the official subtopics from the Kenya CBC curriculum. Structure 
   // No subtopic cascading required
   
 
-  // When generation completes, persist lesson into context and close
+  // When generation completes, persist lesson into context and close (run once per lessonId)
+  const savedOnceRef = useRef<string | null>(null);
   useEffect(() => {
-    if (status === 'completed' && final && lessonId) {
-      const toSave = {
-        id: lessonId,
-        grade,
-        subject,
-        topic,
-        specification,
-        content: final.content,
-      } as const;
+    if (status !== 'completed' || !final || !lessonId) return;
+    if (savedOnceRef.current === lessonId) return; // already handled
+    savedOnceRef.current = lessonId;
 
-      // Update context immediately for UI
-      setLesson(toSave as any);
+    const toSave = {
+      id: lessonId,
+      grade,
+      subject,
+      topic,
+      specification,
+      content: final.content,
+    } as const;
 
-      // Persist immediately (auto-save will dedupe if it also triggers)
-      (async () => {
-        try {
-          await saveLesson(toSave as any);
-        } catch {
-          // ignore; errors are logged in saveLesson
-        } finally {
-          onClose();
-        }
-      })();
-    }
-  }, [status, final, lessonId, setLesson, grade, subject, topic, specification, onClose, saveLesson]);
+    // Update context immediately for UI
+    setLesson(toSave as any);
+
+    // Persist immediately (auto-save in context will dedupe too)
+    (async () => {
+      try {
+        await saveLesson(toSave as any);
+      } catch {
+        // ignore; errors are logged in saveLesson
+      } finally {
+        onClose();
+      }
+    })();
+    // Only run once per lessonId
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, final, lessonId, grade, subject, topic, specification]);
 
   // Reset state when opening modal to avoid stale errors/status carrying over
   useEffect(() => {

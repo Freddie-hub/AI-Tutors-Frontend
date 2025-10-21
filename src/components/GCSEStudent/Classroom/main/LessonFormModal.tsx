@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Button from '@/components/ui/Button';
 import { useLesson } from '../context/LessonContext';
 import Card from '@/components/GCSEStudent/shared/Card';
@@ -134,23 +134,27 @@ Note: These are the official ${contentLabel.toLowerCase()} from the Cambridge cu
     }
   }, [selectedSubjectIndex, currentSubject, selectedStrandId]);
 
-  // When generation completes, persist lesson into context and save
+  // When generation completes, persist lesson into context and save once (per lessonId)
+  const savedOnceRef = useRef<string | null>(null);
   useEffect(() => {
-    if (status === 'completed' && final && lessonId) {
-      const toSave = {
-        id: lessonId,
-        grade,
-        subject,
-        topic,
-        specification,
-        content: final.content,
-      } as const;
-      setLesson(toSave);
-      // fire-and-forget save (deduped in context)
-      saveLesson(toSave as any).catch(() => {});
-      onClose();
-    }
-  }, [status, final, lessonId, setLesson, saveLesson, grade, subject, topic, specification, onClose]);
+    if (status !== 'completed' || !final || !lessonId) return;
+    if (savedOnceRef.current === lessonId) return;
+    savedOnceRef.current = lessonId;
+
+    const toSave = {
+      id: lessonId,
+      grade,
+      subject,
+      topic,
+      specification,
+      content: final.content,
+    } as const;
+    setLesson(toSave);
+    // fire-and-forget save (deduped in context)
+    saveLesson(toSave as any).catch(() => {});
+    onClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, final, lessonId, grade, subject, topic, specification]);
 
   // Mirror status/agent to context so other components can react
   useEffect(() => {

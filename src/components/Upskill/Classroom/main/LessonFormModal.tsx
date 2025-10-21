@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Button from '@/components/ui/Button';
 import { useLesson } from '../context/LessonContext';
 import Card from '@/components/Upskill/shared/Card';
@@ -87,24 +87,28 @@ export default function LessonFormModal({ open, onClose }: Props) {
     }
   }, [open]);
 
-  // When generation completes, persist lesson into context and save
+  // When generation completes, persist lesson into context and save once (per lessonId)
+  const savedOnceRef = useRef<string | null>(null);
   useEffect(() => {
-    if (status === 'completed' && final && lessonId) {
-      const toSave = {
-        id: lessonId,
-        grade: 'Upskill',
-        subject: domain || 'General',
-        topic: goal,
-        specification: [currentLevel && `Level: ${currentLevel}`, timeline && `Timeline: ${timeline}`, typeof hoursPerWeek === 'number' && `~${hoursPerWeek} h/wk`, preferences && `Prefs: ${preferences}`]
-          .filter(Boolean)
-          .join(' | '),
-        content: final?.content,
-      } as const;
-      setLesson(toSave);
-      saveLesson(toSave as any).catch(() => {});
-      onClose();
-    }
-  }, [status, final, lessonId, setLesson, saveLesson, goal, domain, currentLevel, timeline, hoursPerWeek, preferences, onClose]);
+    if (status !== 'completed' || !final || !lessonId) return;
+    if (savedOnceRef.current === lessonId) return;
+    savedOnceRef.current = lessonId;
+
+    const toSave = {
+      id: lessonId,
+      grade: 'Upskill',
+      subject: domain || 'General',
+      topic: goal,
+      specification: [currentLevel && `Level: ${currentLevel}`, timeline && `Timeline: ${timeline}`, typeof hoursPerWeek === 'number' && `~${hoursPerWeek} h/wk`, preferences && `Prefs: ${preferences}`]
+        .filter(Boolean)
+        .join(' | '),
+      content: final?.content,
+    } as const;
+    setLesson(toSave);
+    saveLesson(toSave as any).catch(() => {});
+    onClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, final, lessonId, goal, domain, currentLevel, timeline, hoursPerWeek, preferences]);
 
   if (!open) return null;
 
