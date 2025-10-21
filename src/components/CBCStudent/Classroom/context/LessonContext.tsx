@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/hooks';
 import type { AgentType } from '@/lib/ai/types';
 
@@ -23,6 +23,8 @@ type LessonContextType = {
   loadLesson: (lesson: Lesson) => void;
   loadSavedLessons: () => Promise<void>;
   isLoading: boolean;
+  // Auto-save status
+  isAutoSaving?: boolean;
   // Deprecated: use generationStatus instead
   isGenerating: boolean;
   setIsGenerating: React.Dispatch<React.SetStateAction<boolean>>;
@@ -41,11 +43,14 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
   const [lesson, setLesson] = useState<Lesson>(null);
   const [savedLessons, setSavedLessons] = useState<Lesson[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<'idle' | 'planning' | 'accepting' | 'splitting' | 'generating' | 'completed' | 'error'>('idle');
   const [currentAgent, setCurrentAgent] = useState<AgentType | null>(null);
   const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
   const { user } = useAuth();
+  const lastAutoSaveSig = useRef<string | null>(null);
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Load saved lessons when user is available
   useEffect(() => {
@@ -78,6 +83,16 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
     if (!lessonToSave || !user?.uid) return;
 
     try {
+      // Avoid duplicates: if a lesson with same identity/content already exists, skip
+      const exists = savedLessons.some((l) =>
+        l &&
+        l.grade === lessonToSave.grade &&
+        l.subject === lessonToSave.subject &&
+        l.topic === lessonToSave.topic &&
+        (l.content?.trim() || '') === (lessonToSave.content?.trim() || '')
+      );
+      if (exists) return;
+
       const { saveLessonToServer } = await import('@/lib/api');
       const response = await saveLessonToServer({
         grade: lessonToSave.grade,
@@ -106,6 +121,43 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
     setLesson(lessonToLoad);
   };
 
+  // Auto-save once when generation completes (debounced) and content is available
+  useEffect(() => {
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = null;
+    }
+
+    if (generationStatus === 'completed' && lesson && (lesson.content?.trim()?.length || 0) > 0) {
+      // Build a simple signature to avoid duplicate saves in-session
+      const content = (lesson.content || '').trim();
+      const sig = [lesson.grade, lesson.subject, lesson.topic, content.length, content.slice(0, 200)].join('|');
+
+      if (lastAutoSaveSig.current === sig) {
+        return; // already auto-saved this exact content
+      }
+
+      autoSaveTimer.current = setTimeout(async () => {
+        try {
+          setIsAutoSaving(true);
+          await saveLesson(lesson);
+          lastAutoSaveSig.current = sig;
+        } catch (e) {
+          // swallow; errors already logged in saveLesson
+        } finally {
+          setIsAutoSaving(false);
+        }
+      }, 1200);
+    }
+
+    return () => {
+      if (autoSaveTimer.current) {
+        clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = null;
+      }
+    };
+  }, [generationStatus, lesson?.content]);
+
   return (
     <LessonContext.Provider 
       value={{ 
@@ -116,6 +168,7 @@ export function LessonProvider({ children }: { children: React.ReactNode }) {
         loadLesson,
         loadSavedLessons,
         isLoading,
+        isAutoSaving,
         isGenerating,
         setIsGenerating,
         generationStatus,

@@ -54,6 +54,30 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       generationIntervalRef.current = null;
     }
   }, []);
+
+  // Safe JSON parser with graceful fallback to text
+  const parseJsonSafe = useCallback(async (response: Response) => {
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { message: text || response.statusText };
+    }
+  }, []);
+
+  // Reset internal state for a new session
+  const reset = useCallback(() => {
+    cleanup();
+    setStatus('idle');
+    setError(null);
+    setProgress({ current: 0, total: 0 });
+    setCurrentAgent(null);
+    setPlanId(null);
+    setLessonId(null);
+    setRunId(null);
+    setToc(null);
+    setFinal(null);
+  }, [cleanup]);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -89,11 +113,11 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       clearTimeout(timeout);
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await parseJsonSafe(response);
         throw new Error(errorData.message || 'Failed to generate TOC');
       }
       
-  const data: PlanResponsePayload = await response.json();
+  const data: PlanResponsePayload = await parseJsonSafe(response);
   if (data.planId) setPlanId(data.planId as string);
       setToc(data.toc);
       setStatus('idle');
@@ -132,11 +156,11 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       clearTimeout(timeout);
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await parseJsonSafe(response);
         throw new Error(errorData.message || 'Failed to replan TOC');
       }
       
-  const data: PlanResponsePayload = await response.json();
+  const data: PlanResponsePayload = await parseJsonSafe(response);
   if (data.planId) setPlanId(data.planId);
       setToc(data.toc);
       setStatus('idle');
@@ -169,11 +193,11 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await parseJsonSafe(response);
         throw new Error(errorData.message || 'Failed to accept TOC');
       }
       
-      const data = await response.json();
+      const data = await parseJsonSafe(response);
       setLessonId(data.lessonId);
       
       return data.lessonId;
@@ -205,11 +229,11 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await parseJsonSafe(response);
         throw new Error(errorData.message || 'Failed to split workload');
       }
       
-      const data = await response.json();
+      const data = await parseJsonSafe(response);
       setProgress({ current: 0, total: data.totalSubtasks });
       setCurrentAgent(null);
       return data;
@@ -249,11 +273,11 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       });
       
       if (!initialResponse.ok) {
-        const errorData = await initialResponse.json();
+        const errorData = await parseJsonSafe(initialResponse);
         throw new Error(errorData.message || 'Failed to start generation');
       }
       
-      const initialData = await initialResponse.json();
+      const initialData = await parseJsonSafe(initialResponse);
       setRunId(initialData.runId);
       
       if (initialData.status === 'completed') {
@@ -315,6 +339,9 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       
       eventSource.onerror = (err) => {
         console.error('SSE error:', err);
+        setError('Progress stream error. Please try again.');
+        setStatus('error');
+        setCurrentAgent(null);
         eventSource.close();
       };
       
@@ -338,7 +365,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
           }
           
           if (!continueResponse.ok) {
-            const errorData = await continueResponse.json().catch(() => ({ message: 'Unknown error' }));
+            const errorData = await parseJsonSafe(continueResponse);
             
             // 401 means auth token expired - this is a real error
             if (continueResponse.status === 401) {
@@ -363,7 +390,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
             return;
           }
           
-          const continueData = await continueResponse.json();
+          const continueData = await parseJsonSafe(continueResponse);
           
           if (continueData.status === 'completed') {
             setFinal(continueData.final);
@@ -452,6 +479,7 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
     runId,
     
     // Actions
+    reset,
     generateTOC,
     replanTOC,
     acceptTOC,

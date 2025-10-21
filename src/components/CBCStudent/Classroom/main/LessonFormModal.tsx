@@ -42,6 +42,7 @@ export default function LessonFormModal({ open, onClose }: Props) {
     toc,
     final,
     lessonId,
+    reset,
     generateTOC,
     acceptTOC,
     splitWorkload,
@@ -147,6 +148,17 @@ Note: These are the official subtopics from the Kenya CBC curriculum. Structure 
     }
   }, [status, final, lessonId, setLesson, grade, subject, topic, specification, onClose]);
 
+  // Reset state when opening modal to avoid stale errors/status carrying over
+  useEffect(() => {
+    if (open) {
+      reset();
+      setGenerationStatus('idle');
+      setCtxAgent(null);
+      setGenerationProgress({ current: 0, total: 0 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // Mirror status/agent to context so other components can react
   useEffect(() => {
     setGenerationStatus(status);
@@ -227,6 +239,10 @@ Note: These are the official subtopics from the Kenya CBC curriculum. Structure 
     if (status === 'generating') {
       try { await cancelGeneration(); } catch { /* ignore */ }
     }
+    reset();
+    setGenerationStatus('idle');
+    setCtxAgent(null);
+    setGenerationProgress({ current: 0, total: 0 });
     onClose();
   };
 
