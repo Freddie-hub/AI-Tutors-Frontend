@@ -43,7 +43,7 @@ export async function POST(
       .join(' ');
     
     const openai = getOpenAI();
-    const timeoutMs = Number(process.env.PLANNER_TIMEOUT_MS || 20000);
+  const timeoutMs = Number(process.env.PLANNER_TIMEOUT_MS || 60000);
     
     let timeoutHandle: NodeJS.Timeout | null = null;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -57,7 +57,6 @@ export async function POST(
       model: OPENAI_CHAT_MODEL,
       temperature: 0.5,
       response_format: { type: 'json_object' },
-      max_tokens: 500,
       messages: [
         { role: 'system', content: systemTutor },
         {
@@ -79,11 +78,51 @@ export async function POST(
     console.log('[replan] Completion received');
     
     const content = completion.choices?.[0]?.message?.content || '{}';
-    const parsed = JSON.parse(content) as {
-      toc: PlanResponsePayload['toc'];
-      recommendedChapterCount: number;
-      estimates: PlanResponsePayload['estimates'];
-    };
+    let raw: any;
+    try {
+      raw = JSON.parse(content);
+    } catch (e) {
+      console.error('[replan] JSON parse error. Full content:', content);
+      throw new Error('Failed to parse replan response.');
+    }
+
+    // Map both universal planner shape and legacy shape to PlanResponsePayload
+    const parsed = (() => {
+      if (raw && raw.public && raw.private) {
+        const toc = Array.isArray(raw.public.toc) ? raw.public.toc.map((c: any) => ({
+          chapterId: c.chapterId,
+          title: c.title,
+          subtopics: Array.isArray(c.subtopics) ? c.subtopics : [],
+        })) : [];
+  const recommendedChapterCount = Number(raw.public.recommendedChapterCount ?? (toc.length || 4));
+        const totalTokens = Number(raw.private?.estimates?.totalTokens ?? 0);
+        const perChapter = Array.isArray(raw.private?.estimates?.perChapter)
+          ? raw.private.estimates.perChapter.map((pc: any) => ({
+              chapterId: pc.chapterId,
+              estimatedTokens: Number(pc.tokens ?? pc.estimatedTokens ?? 0),
+            }))
+          : [];
+        return { toc, recommendedChapterCount, estimates: { totalTokens, perChapter } } as {
+          toc: PlanResponsePayload['toc'];
+          recommendedChapterCount: number;
+          estimates: PlanResponsePayload['estimates'];
+        };
+      }
+      if (raw && raw.toc && Array.isArray(raw.toc)) {
+  const recommendedChapterCount = Number(raw.recommendedChapterCount ?? (raw.toc.length || 4));
+        const totalTokens = Number(raw.estimates?.totalTokens ?? 0);
+        const perChapter = Array.isArray(raw.estimates?.perChapter) ? raw.estimates.perChapter : [];
+        return { toc: raw.toc, recommendedChapterCount, estimates: { totalTokens, perChapter } } as {
+          toc: PlanResponsePayload['toc'];
+          recommendedChapterCount: number;
+          estimates: PlanResponsePayload['estimates'];
+        };
+      }
+      return null;
+    })();
+    if (!parsed) {
+      throw new Error('Invalid replan response structure');
+    }
     
     console.log('[replan] Creating new plan...');
     // Create a new refined plan

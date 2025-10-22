@@ -91,8 +91,8 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       setCurrentAgent('planner');
       
       const token = await getAuthToken();
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000); // 25s client timeout
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000); // 60s client timeout (aligns with server)
       const response = await fetch('/api/tutor/plan/toc', {
         method: 'POST',
         headers: {
@@ -142,8 +142,8 @@ export function useLessonGenerator(options: UseLessonGeneratorOptions = {}) {
       setError(null);
       
       const token = await getAuthToken();
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000); // 25s client timeout
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000); // 60s client timeout (aligns with server)
       const response = await fetch(`/api/tutor/plan/toc/${planId}/replan`, {
         method: 'POST',
         headers: {

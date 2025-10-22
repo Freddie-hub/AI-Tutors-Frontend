@@ -61,8 +61,8 @@ export function useUpskillLessonGenerator(options: UseUpskillLessonGeneratorOpti
       setCurrentAgent('planner');
 
       const token = await getAuthToken();
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000); // 60s client timeout (aligns with server)
       const response = await fetch('/api/upskill/plan/goal', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

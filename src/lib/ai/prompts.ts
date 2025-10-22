@@ -154,6 +154,7 @@ Return JSON: { query: string, mustInclude?: string }`;
 // Multi-Agent Lesson Planning
 // ============================
 
+// Universal planner for CBC/GCSE/Upskill. Returns strict JSON with { public: { learningOutcome, depthProfile, toc, immersiveLayers, recommendedChapterCount }, private: { estimates, chunking, lengthPolicy, sequencingRationale } }.
 export function plannerPrompt(params: {
   grade: string;
   subject: string;
@@ -172,7 +173,7 @@ export function plannerPrompt(params: {
       ? 'Consider employability, practical projects, and professional best practices (no curriculum constraints).'
       : 'Consider CBC strands, sub-strands, and learning outcomes.');
   
-  return `You are a curriculum planner creating a table of contents for a lesson aligned to ${curriculumName}.
+  return `You are a curriculum planner creating an immersive learning plan aligned to ${curriculumName}.
 
 Grade: ${grade}
 Subject: ${subject}
@@ -181,56 +182,69 @@ Specifics: ${specification ?? 'none'}
 Curriculum context: ${curriculumContext ?? 'n/a'}
 Preferences: ${preferences ?? 'n/a'}
 
-Task: Break down this topic into 3-6 logical chapters. For each chapter, provide a title and 2-5 subtopics.
+Universal Structure Logic (always follow):
+1) Define Learning Outcome: one-sentence transformation the learner should achieve.
+2) Determine Depth: infer level from the request (intro/intermediate/proficient) and justify briefly.
+3) Decompose Topic → Break the main topic into its essential conceptual pillars or subdomains, ensuring that all foundational and applied dimensions are covered.
+4) Sequence for Cognition → Arrange these concepts in a logical learning flow — starting from introductory ideas, progressing through development and application, and culminating in synthesis or reflection.
+5) Add Immersive Layers: per chapter/subtopic suggest exercises, mini-projects, case studies, reflections, cross-domain links.
+6) Automatically determine the amount of detail, explanation, and illustrative content each section requires to deliver full conceptual mastery and learner engagement.(Estimate Content Load: for EACH subtopic estimate words AND tokens (hidden from UI); also sum per chapter and total.)
+7) Output Structured Plan: return strict JSON with public (UI-visible) and private (hidden) fields.
 
 ${contextNote}
 
-Return ONLY this JSON (no markdown, no extra text):
+Return STRICT JSON ONLY (no markdown, no extra commentary):
 {
-  "toc": [
-    {
-      "chapterId": "chap-1",
-      "title": "Chapter title",
-      "subtopics": ["Subtopic 1", "Subtopic 2"]
-    }
-  ],
-  "recommendedChapterCount": 4,
-  "estimates": {
-    "totalTokens": 12000,
-    "perChapter": [
-      { "chapterId": "chap-1", "estimatedTokens": 3000 }
-    ]
+  "public": {
+    "learningOutcome": "...",
+    "depthProfile": { "level": "intro|intermediate|proficient", "rationale": "..." },
+    "toc": [
+      { "chapterId": "chap-1", "title": "...", "subtopics": ["...", "..."], "description": "...", "learningGoals": ["...", "..."] }
+    ],
+    "immersiveLayers": {
+      "byChapter": [
+        { "chapterId": "chap-1", "exercises": ["..."], "projects": ["..."], "cases": ["..."], "reflections": ["..."], "crossLinks": ["..."] }
+      ]
+    },
+    "recommendedChapterCount": 4
+  },
+  "private": {
+    "estimates": {
+      "totalWords": 0,
+      "totalTokens": 0,
+      "perChapter": [ { "chapterId": "chap-1", "words": 0, "tokens": 0 } ],
+      "perSubtopic": [ { "chapterId": "chap-1", "subtopicIndex": 0, "words": 0, "tokens": 0 } ]
+    },
+    "chunking": {
+      "cohesionBlocks": [
+        { "blockId": "block-1", "items": [ { "chapterId": "chap-1", "subtopicIndex": 0 }, { "chapterId": "chap-1", "subtopicIndex": 1 } ], "targetTokens": 0, "rationale": "keep related concepts together" }
+      ]
+    },
+    "lengthPolicy": "beast_mode|balanced",
+    "sequencingRationale": "..."
   }
-}
-
-Guidelines:
-- Typical chapter: 1500-3000 tokens
-- Total: 5000-20000 tokens
-- Keep titles concise (3-7 words)
-- No explanations outside JSON`;
+}`;
 }
 
 export function workloadSplitterPrompt(params: {
   toc: Array<{ chapterId: string; title: string; subtopics: string[] }>;
+  // Deprecated: splitting is deterministic from planner chunking; keep for fallback only
   totalTokens: number;
-  maxTokensPerSubtask?: number;
 }) {
-  const { toc, totalTokens, maxTokensPerSubtask = 2000 } = params;
+  const { toc, totalTokens } = params;
   const tocStr = JSON.stringify(toc, null, 2);
   
-  return `You are a workload planner. Given a table of contents and total token budget, divide the work into sequential subtasks.
+  return `You are a fallback workload planner. Given a table of contents and total token budget, divide the work into sequential subtasks.
 
 Table of Contents:
 ${tocStr}
 
 Total tokens target: ${totalTokens}
-Max tokens per subtask: ${maxTokensPerSubtask}
 
 Your task:
 1. Divide the lesson into subtasks that align with chapter/subtopic boundaries.
-2. Each subtask should produce ~${maxTokensPerSubtask} tokens or less.
-3. Maintain logical continuity - prefer keeping related content together.
-4. Number subtasks sequentially starting from 1.
+2. Maintain logical continuity - prefer keeping related content together.
+3. Number subtasks sequentially starting from 1.
 
 Return strict JSON:
 {
@@ -256,8 +270,7 @@ Return strict JSON:
 Guidelines:
 - If a chapter fits in one subtask, set startChapterId = endChapterId.
 - If splitting within a chapter, use subtopic indices.
-- Distribute tokens relatively evenly across subtasks.
-- Aim for 1-2k tokens per subtask for reliable generation.`;
+- Distribute tokens relatively evenly across subtasks.`;
 }
 
 export function sectionWriterPrompt(params: {
@@ -275,6 +288,7 @@ export function sectionWriterPrompt(params: {
   };
   previousContext?: string;
   targetTokens: number;
+  lengthHintsBySubtopic?: Array<{ chapterId: string; subtopicIndex: number; targetTokens: number; targetWords?: number }>;
   subtaskOrder: number;
   totalSubtasks: number;
   curriculumType?: 'cbc' | 'gcse' | 'upskill';
@@ -289,6 +303,7 @@ export function sectionWriterPrompt(params: {
     subtaskRange,
     previousContext,
     targetTokens,
+    lengthHintsBySubtopic,
     subtaskOrder,
     totalSubtasks,
     curriculumType = 'cbc',
@@ -328,6 +343,7 @@ ${rangeStr}
 ${previousContext ? `Previous content summary:\n${previousContext}\n` : ''}
 
 Target: ~${targetTokens} tokens for this subtask.
+${lengthHintsBySubtopic && lengthHintsBySubtopic.length ? `Per-subtopic length guide (adhere ±10%): ${JSON.stringify(lengthHintsBySubtopic)}` : ''}
 
 Your task:
 1. Write detailed, textbook-quality content for the assigned range only.
@@ -387,17 +403,38 @@ Available time: ${hoursPerWeek ?? 'unspecified'} hours/week
 Preferences: ${preferences ?? 'none'}
 Motivation/Context: ${motivation ?? 'none'}
 
-Your task:
-1) Break the path into 3–8 chapters (or milestones) with concise titles and 2–6 subtopics each.
-2) Balance depth vs. time; prioritize must-know before nice-to-know.
-3) Include practical orientation (projects, exercises, deliverables) where suitable.
-4) Estimate total tokens (or effort) and per-chapter budget.
+Universal Structure Logic (always follow):
+Universal Structure Logic (always follow):
+1) Define Learning Outcome: one-sentence transformation the learner should achieve.
+2) Determine Depth: infer level from the request (intro/intermediate/proficient) and justify briefly.
+3) Decompose Topic → Break the main topic into its essential conceptual pillars or subdomains, ensuring that all foundational and applied dimensions are covered.
+4) Sequence for Cognition → Arrange these concepts in a logical learning flow — starting from introductory ideas, progressing through development and application, and culminating in synthesis or reflection.
+5) Add Immersive Layers: per chapter/subtopic suggest exercises, mini-projects, case studies, reflections, cross-domain links.
+6) Automatically determine the amount of detail, explanation, and illustrative content each section requires to deliver full conceptual mastery and learner engagement.(Estimate Content Load: for EACH subtopic estimate words AND tokens (hidden from UI); also sum per chapter and total.)
+7) Output Structured Plan with public and private fields.
 
 Return STRICT JSON ONLY (no extra commentary):
 {
-  "toc": [ { "chapterId": "chap-1", "title": "...", "subtopics": ["...", "..."] } ],
-  "recommendedChapterCount": <number>,
-  "estimates": { "totalTokens": <number>, "perChapter": [ { "chapterId": "chap-1", "estimatedTokens": <number> } ] }
+  "public": {
+    "learningOutcome": "...",
+    "depthProfile": { "level": "intro|intermediate|proficient", "rationale": "..." },
+    "toc": [ { "chapterId": "chap-1", "title": "...", "subtopics": ["...", "..."], "description": "...", "learningGoals": ["...", "..."] } ],
+    "immersiveLayers": { "byChapter": [ { "chapterId": "chap-1", "exercises": ["..."], "projects": ["..."], "cases": ["..."], "reflections": ["..."], "crossLinks": ["..."] } ] },
+    "recommendedChapterCount": <number>
+  },
+  "private": {
+    "estimates": {
+      "totalWords": <number>,
+      "totalTokens": <number>,
+      "perChapter": [ { "chapterId": "chap-1", "words": <number>, "tokens": <number> } ],
+      "perSubtopic": [ { "chapterId": "chap-1", "subtopicIndex": 0, "words": <number>, "tokens": <number> } ]
+    },
+    "chunking": {
+      "cohesionBlocks": [ { "blockId": "block-1", "items": [ { "chapterId": "chap-1", "subtopicIndex": 0 } ], "targetTokens": <number>, "rationale": "..." } ]
+    },
+    "lengthPolicy": "beast_mode|balanced",
+    "sequencingRationale": "..."
+  }
 }`;
 }
 

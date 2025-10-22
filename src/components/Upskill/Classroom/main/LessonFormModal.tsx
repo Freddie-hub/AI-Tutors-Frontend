@@ -235,7 +235,7 @@ export default function LessonFormModal({ open, onClose }: Props) {
                 <input type="text" className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2" placeholder="e.g., Know Python basics; new to ML" value={currentLevel} onChange={(e) => setCurrentLevel(e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-white/70 mb-1">Timeline (optional)</label>
                 <input type="text" className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2" placeholder="e.g., 3 months, 1 week, one night" value={timeline} onChange={(e) => setTimeline(e.target.value)} />
@@ -243,10 +243,6 @@ export default function LessonFormModal({ open, onClose }: Props) {
               <div>
                 <label className="block text-sm text-white/70 mb-1">Hours/week (optional)</label>
                 <input type="number" min={1} className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2" placeholder="e.g., 10" value={hoursPerWeek} onChange={(e) => setHoursPerWeek(e.target.value === '' ? '' : Number(e.target.value))} />
-              </div>
-              <div>
-                <label className="block text-sm text-white/70 mb-1">Target size (tokens)</label>
-                <input type="number" min={3000} step={1000} className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2" placeholder="e.g., 15000" value={totalTokens} onChange={(e) => setTotalTokens(Number(e.target.value))} />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
