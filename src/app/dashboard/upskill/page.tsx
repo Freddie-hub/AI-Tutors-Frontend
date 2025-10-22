@@ -11,10 +11,19 @@ import { formatDateParts } from '@/lib/date';
 export default function Page() {
     // Allow upskill-individual role only; must be onboarded
     useDashboardProtection(['upskill-individual']);
-    const { user, profile } = useAuthUser();
+    const { user, profile, loading } = useAuthUser();
     const displayName = profile?.displayName || user?.displayName || 'Learner';
     const today = new Date();
     const { weekday, dateText } = formatDateParts(today);
+
+    // Loading placeholder to match other dashboards
+    if (loading || !profile) {
+        return (
+            <main className="min-h-screen flex items-center justify-center p-6">
+                <div className="text-slate-600">Preparing your dashboard…</div>
+            </main>
+        );
+    }
 
     return (
         <DashboardLayout active="Dashboard">

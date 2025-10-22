@@ -126,20 +126,14 @@ export function useRoleRedirect(options: RoleRedirectOptions = {}): RoleRedirect
       return;
     }
 
-    // If user has a role and navigates to choose-role, redirect them appropriately
+    // Allow authenticated users to access role selection to change roles when not onboarded.
+    // Onboarded users will be redirected away from onboarding routes by a later block.
     if (isAuthenticated && pathname === '/onboarding/choose-role') {
-      if (currentRole) {
-        if (!isOnboarded) {
-          const onboardingRoute = ROLE_ONBOARDING_ROUTE[currentRole] || '/onboarding/choose-role';
-          performRedirect(onboardingRoute, 'Role exists, onboarding incomplete');
-          return;
-        }
-        const dashboardRoute = ROLE_ROUTES[currentRole as keyof typeof ROLE_ROUTES];
-        if (dashboardRoute) {
-          performRedirect(dashboardRoute, 'Role exists, already onboarded');
-          return;
-        }
+      // If user is not onboarded, allow staying on choose-role to switch roles
+      if (!isOnboarded) {
+        return;
       }
+      // If already onboarded, redirect to the appropriate dashboard (handled later as well)
     }
 
     // Authenticated users on /auth should be redirected away

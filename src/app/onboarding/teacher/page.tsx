@@ -1,26 +1,37 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthUser, useAuthActions, useFormState } from '@/lib/hooks';
 import { useOnboarding } from '@/lib/context/OnboardingContext';
-import { setTeacherProfile } from '@/lib/api'; // You should implement this API call
+import { setTeacherProfile } from '@/lib/api';
 import { useOnboardingProtection } from '@/hooks/useRoleRedirect';
+import BackToRoleSelection from '@/components/onboarding/BackToRoleSelection';
 
 type TeacherFormValues = {
   name: string;
   subject: string;
   curriculum: 'CBC' | 'GCSE' | 'Other' | '';
   school: string;
-  yearsExperience: string;
   otherCurriculum?: string;
 };
+
+const TEACHER_FEATURES = [
+  'AI-powered lesson plan generation for any topic',
+  'Create quizzes and exams with customizable difficulty',
+  'Personalized dashboard with your curriculum and schedule',
+  'Resource library to save and organize all your materials',
+  'Interactive classroom workspace with AI tutor assistant',
+  'Track student progress with intelligent analytics',
+  'Browse curriculum-aligned content (CBC/GCSE)',
+  'Download and share your teaching materials easily',
+];
 
 export default function TeacherOnboardingPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthUser();
   const { setIsLoading } = useOnboarding();
-  const { setError: setGlobalError } = useAuthActions();
+  const { loading: actionLoading, setError: setGlobalError } = useAuthActions();
   const { isLoading: guardLoading } = useOnboardingProtection();
 
   const form = useFormState<TeacherFormValues>({
@@ -28,16 +39,11 @@ export default function TeacherOnboardingPage() {
     subject: '',
     curriculum: '',
     school: '',
-    yearsExperience: '',
     otherCurriculum: '',
   });
 
   const [step, setStep] = useState(1);
-  const [isSlow, setIsSlow] = useState(false);
-  const slowTimerRef = useRef<number | null>(null);
-
-  const totalSteps = 2;
-  const progress = useMemo(() => Math.round((step / totalSteps) * 100), [step, totalSteps]);
+  const totalSteps = 3;
 
   useEffect(() => {
     if (!authLoading && !guardLoading && !user) {
@@ -47,8 +53,8 @@ export default function TeacherOnboardingPage() {
 
   if (authLoading || guardLoading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="h-12 w-12 animate-spin rounded-full border-2 border-transparent bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-border" />
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
       </div>
     );
   }
@@ -82,24 +88,20 @@ export default function TeacherOnboardingPage() {
         form.setError('otherCurriculum', 'Please specify your curriculum');
         return false;
       }
-      if (!form.values.yearsExperience) {
-        form.setError('yearsExperience', 'Please enter your years of experience');
-        return false;
-      }
       return true;
     }
 
     return true;
   };
 
-  const handleStepChange = (direction: 'next' | 'prev') => {
-    if (direction === 'next') {
-      if (validateStep(step)) {
-        setStep((prev) => Math.min(prev + 1, totalSteps));
-      }
-    } else {
-      setStep((prev) => Math.max(1, prev - 1));
+  const handleNext = () => {
+    if (validateStep(step)) {
+      setStep((prev) => Math.min(prev + 1, totalSteps));
     }
+  };
+
+  const handlePrev = () => {
+    setStep((prev) => Math.max(1, prev - 1));
   };
 
   const handleSubmit = async () => {
@@ -109,14 +111,6 @@ export default function TeacherOnboardingPage() {
 
     setIsLoading(true);
     form.setSubmitting(true);
-    setIsSlow(false);
-
-    if (slowTimerRef.current) {
-      clearTimeout(slowTimerRef.current);
-    }
-    slowTimerRef.current = window.setTimeout(() => {
-      setIsSlow(true);
-    }, 7000);
 
     try {
       const response = await setTeacherProfile(user.uid, {
@@ -126,14 +120,13 @@ export default function TeacherOnboardingPage() {
         curriculum: form.values.curriculum === 'Other'
           ? (form.values.otherCurriculum || '')
           : form.values.curriculum,
-        yearsExperience: form.values.yearsExperience,
+        yearsExperience: '0',
       });
 
       if (!response.success) {
         throw new Error(response.message ?? 'Failed to complete onboarding');
       }
 
-      // Redirect based on selected curriculum
       if (form.values.curriculum === 'CBC') {
         router.replace('/dashboard/teacher/cbc');
       } else if (form.values.curriculum === 'GCSE') {
@@ -146,243 +139,216 @@ export default function TeacherOnboardingPage() {
       form.setError('api', message);
       setGlobalError(message);
     } finally {
-      if (slowTimerRef.current) {
-        clearTimeout(slowTimerRef.current);
-        slowTimerRef.current = null;
-      }
-      setIsSlow(false);
       setIsLoading(false);
       form.setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen flex items-center justify-between bg-white px-8 lg:px-16 py-8">
+      {/* Left Section - Form */}
+      <div className="w-full max-w-2xl">
+        {/* Step 1: Basic Info */}
+        {step === 1 && (
+          <>
+            <h1 className="text-3xl font-bold text-gray-900 mb-5">
+              Tell us about yourself
+            </h1>
 
-      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-12">
-        <div className="mb-8 max-w-2xl text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-2xl font-bold">
-            T
-          </div>
-          <h1 className="mb-4 text-4xl font-bold text-white">Welcome, Teacher</h1>
-          <p className="text-lg text-slate-300">
-            Let’s set up your teaching profile and personalise your AI tools.
-          </p>
-        </div>
-
-        <div className="mb-8 w-full max-w-2xl">
-          <div className="mb-2 flex items-center justify-between text-sm text-slate-400">
-            <span>
-              Step {step} of {totalSteps}
-            </span>
-            <span>{progress}% complete</span>
-          </div>
-          <div className="h-2 w-full rounded-full bg-slate-700">
-            <div
-              className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
-          {step === 1 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white text-center">Basic Information</h2>
-
+            <div className="space-y-4 mb-6">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Full Name<span className="text-red-400">*</span>
-                </label>
                 <input
                   value={form.values.name}
                   onChange={(e) => form.setValue('name', e.target.value)}
-                  className={`w-full rounded-xl border px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 ${
-                    form.errors.name ? 'border-red-400 bg-red-500/10' : 'border-white/20 bg-white/10'
+                  className={`w-full rounded-xl border-2 px-6 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    form.errors.name ? 'border-red-400 bg-red-50' : 'border-gray-300 border-dashed'
                   }`}
-                  placeholder="Enter your full name"
+                  placeholder="Full Name"
                 />
-                {form.errors.name && <p className="mt-1 text-sm text-red-400">{form.errors.name}</p>}
+                {form.errors.name && <p className="mt-1 text-sm text-red-600">{form.errors.name}</p>}
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Subject Taught<span className="text-red-400">*</span>
-                </label>
                 <input
                   value={form.values.subject}
                   onChange={(e) => form.setValue('subject', e.target.value)}
-                  className={`w-full rounded-xl border px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 ${
-                    form.errors.subject ? 'border-red-400 bg-red-500/10' : 'border-white/20 bg-white/10'
+                  className={`w-full rounded-xl border-2 px-6 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    form.errors.subject ? 'border-red-400 bg-red-50' : 'border-gray-300 border-dashed'
                   }`}
-                  placeholder="e.g., Mathematics, English, Science"
+                  placeholder="Subject you teach (e.g., Mathematics, English)"
                 />
-                {form.errors.subject && <p className="mt-1 text-sm text-red-400">{form.errors.subject}</p>}
+                {form.errors.subject && <p className="mt-1 text-sm text-red-600">{form.errors.subject}</p>}
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  School / Institution<span className="text-red-400">*</span>
-                </label>
                 <input
                   value={form.values.school}
                   onChange={(e) => form.setValue('school', e.target.value)}
-                  className={`w-full rounded-xl border px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 ${
-                    form.errors.school ? 'border-red-400 bg-red-500/10' : 'border-white/20 bg-white/10'
+                  className={`w-full rounded-xl border-2 px-6 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    form.errors.school ? 'border-red-400 bg-red-50' : 'border-gray-300 border-dashed'
                   }`}
-                  placeholder="Enter your school or institution name"
+                  placeholder="School / Institution"
                 />
-                {form.errors.school && <p className="mt-1 text-sm text-red-400">{form.errors.school}</p>}
+                {form.errors.school && <p className="mt-1 text-sm text-red-600">{form.errors.school}</p>}
               </div>
             </div>
-          )}
+          </>
+        )}
 
-          {step === 2 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white text-center">Teaching Details</h2>
+        {/* Step 2: Curriculum */}
+        {step === 2 && (
+          <>
+            <h1 className="text-3xl font-bold text-gray-900 mb-5">
+              Which curriculum do you teach?
+            </h1>
 
-              <div>
-                <span className="mb-3 block text-sm font-medium text-slate-200">
-                  Which curriculum do you teach?<span className="text-red-400">*</span>
-                </span>
-                <div className="space-y-3">
-                  {(['CBC', 'GCSE', 'Other'] as const).map((curriculum) => {
-                    const isActive = form.values.curriculum === curriculum;
-                    return (
-                      <button
-                        key={curriculum}
-                        type="button"
-                        onClick={() => form.setValue('curriculum', curriculum)}
-                        className={`w-full rounded-xl border p-4 text-left transition-colors ${
-                          isActive
-                            ? 'border-blue-400 bg-blue-500/10'
-                            : 'border-white/20 bg-white/5 hover:border-blue-400'
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          <div
-                            className={`mr-3 h-4 w-4 rounded-full border-2 ${
-                              isActive ? 'border-blue-400 bg-blue-400' : 'border-white/40'
-                            }`}
-                          />
-                          <span className="text-white">{curriculum}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                {form.errors.curriculum && (
-                  <p className="mt-2 text-sm text-red-400">{form.errors.curriculum}</p>
-                )}
-              </div>
-
-              {form.values.curriculum === 'Other' && (
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-200">
-                    Specify Curriculum<span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    value={form.values.otherCurriculum}
-                    onChange={(e) => form.setValue('otherCurriculum', e.target.value)}
-                    className={`w-full rounded-xl border px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 ${
-                      form.errors.otherCurriculum
-                        ? 'border-red-400 bg-red-500/10'
-                        : 'border-white/20 bg-white/10'
-                    }`}
-                    placeholder="Enter the name of your curriculum"
-                  />
-                  {form.errors.otherCurriculum && (
-                    <p className="mt-1 text-sm text-red-400">{form.errors.otherCurriculum}</p>
-                  )}
-                </div>
-              )}
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Years of Teaching Experience<span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.values.yearsExperience}
-                  onChange={(e) => form.setValue('yearsExperience', e.target.value)}
-                  className={`w-full rounded-xl border px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 ${
-                    form.errors.yearsExperience
-                      ? 'border-red-400 bg-red-500/10'
-                      : 'border-white/20 bg-white/10'
-                  }`}
-                  placeholder="Enter your years of experience"
-                />
-                {form.errors.yearsExperience && (
-                  <p className="mt-1 text-sm text-red-400">{form.errors.yearsExperience}</p>
-                )}
-              </div>
+            <div className="space-y-3 mb-6">
+              {(['CBC', 'GCSE', 'Other'] as const).map((curriculum) => {
+                const isSelected = form.values.curriculum === curriculum;
+                return (
+                  <button
+                    key={curriculum}
+                    type="button"
+                    onClick={() => form.setValue('curriculum', curriculum)}
+                    className={`w-full rounded-lg border-2 p-4 text-left transition-all duration-200
+                      ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50/50'
+                          : 'border-gray-300 border-dashed bg-white hover:border-gray-400'
+                      }
+                    `}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`h-4 w-4 rounded-full border-2 flex-shrink-0 ${
+                        isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-400'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-full h-full text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="text-base font-semibold text-gray-900">{curriculum}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          )}
 
-          {form.errors.api && (
-            <div className="mt-4 rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">
-              {form.errors.api}
-            </div>
-          )}
-
-          {isSlow && !form.errors.api && (
-            <div className="mt-4 rounded-lg border border-yellow-300/20 bg-yellow-500/10 p-3 text-sm text-yellow-200">
-              This is taking longer than expected. Please hold on while we finish setting things up.
-            </div>
-          )}
-
-          <div className="mt-8 flex items-center justify-between border-t border-white/10 pt-6">
-            <button
-              type="button"
-              onClick={() => (step === 1 ? router.push('/onboarding/choose-role') : handleStepChange('prev'))}
-              className="flex items-center text-sm text-slate-400 transition-colors hover:text-white"
-            >
-              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              {step === 1 ? 'Back to role selection' : 'Previous'}
-            </button>
-
-            {step < totalSteps ? (
-              <button
-                type="button"
-                onClick={() => handleStepChange('next')}
-                className="flex items-center rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-3 text-white transition hover:from-blue-600 hover:to-cyan-600"
-              >
-                Continue
-                <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={form.isSubmitting}
-                onClick={handleSubmit}
-                className="flex items-center rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-8 py-3 text-white transition hover:from-blue-600 hover:to-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {form.isSubmitting ? (
-                  <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-transparent bg-gradient-to-r from-white to-transparent bg-clip-border" />
-                    Setting up...
-                  </>
-                ) : (
-                  <>
-                    Complete setup
-                    <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </>
-                )}
-              </button>
+            {form.errors.curriculum && (
+              <p className="mb-4 text-sm text-red-600">{form.errors.curriculum}</p>
             )}
-          </div>
+
+            {form.values.curriculum === 'Other' && (
+              <div className="mb-6">
+                <input
+                  value={form.values.otherCurriculum}
+                  onChange={(e) => form.setValue('otherCurriculum', e.target.value)}
+                  className={`w-full rounded-xl border-2 px-6 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    form.errors.otherCurriculum ? 'border-red-400 bg-red-50' : 'border-gray-300 border-dashed'
+                  }`}
+                  placeholder="Specify your curriculum"
+                />
+                {form.errors.otherCurriculum && (
+                  <p className="mt-1 text-sm text-red-600">{form.errors.otherCurriculum}</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Step 3: Features Guide */}
+        {step === 3 && (
+          <>
+            <h1 className="text-3xl font-bold text-gray-900 mb-5">
+              Teacher features at a glance
+            </h1>
+
+            <p className="text-lg text-gray-600 mb-8">
+              Everything you need to create engaging lessons and manage your classroom effectively.
+            </p>
+
+            <ul className="space-y-3 mb-10">
+              {TEACHER_FEATURES.map((feature, index) => (
+                <li key={index} className="flex items-start gap-3 text-gray-700">
+                  <span className="text-blue-500 font-bold mt-1">•</span>
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+
+            {form.errors.api && (
+              <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+                {form.errors.api}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Navigation Buttons */}
+        <div className="flex items-center gap-4">
+          {step > 1 && (
+            <button
+              onClick={handlePrev}
+              disabled={actionLoading}
+              className="px-6 py-3 rounded-lg font-medium text-gray-700 border-2 border-gray-300 hover:border-gray-400 transition-all duration-200 disabled:opacity-50"
+            >
+              Back
+            </button>
+          )}
+
+          {step < totalSteps ? (
+            <button
+              onClick={handleNext}
+              disabled={actionLoading}
+              className="px-8 py-3 rounded-lg font-medium text-white bg-indigo-900 hover:bg-indigo-800 transition-all duration-200 flex items-center gap-2"
+            >
+              Next
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={actionLoading || form.isSubmitting}
+              className={`px-8 py-3 rounded-lg font-medium text-white transition-all duration-200 flex items-center gap-2 ${
+                actionLoading || form.isSubmitting
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-indigo-900 hover:bg-indigo-800'
+              }`}
+            >
+              {form.isSubmitting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Setting up...
+                </>
+              ) : (
+                <>
+                  Get Started
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </>
+              )}
+            </button>
+          )}
         </div>
+
+        {step === 1 && (
+          <div className="mt-6">
+            <BackToRoleSelection />
+          </div>
+        )}
+      </div>
+
+      {/* Right Section - Illustration */}
+      <div className="hidden lg:flex items-center justify-center w-full max-w-xl">
+        <img
+          src="/educator.svg"
+          alt="Teacher workspace illustration"
+          className="w-full h-auto"
+        />
       </div>
     </div>
   );
