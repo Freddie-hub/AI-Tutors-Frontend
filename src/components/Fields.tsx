@@ -13,7 +13,7 @@ export default function Fields() {
   const cards = [
     {
       title: "CBC Curriculum",
-      desc: "Master Kenya’s Competency-Based Curriculum with AI-personalized lessons. Study independently under Autopilot Mode as the AI guides you through structured lessons, assessments, and projects aligned with CBC standards.",
+      desc: "Master Kenya's Competency-Based Curriculum with AI-personalized lessons. Study independently under Autopilot Mode as the AI guides you through structured lessons, assessments, and projects aligned with CBC standards.",
       tagline: "Aligned with CBC. Powered by AI.",
     },
     {
@@ -27,9 +27,9 @@ export default function Fields() {
       tagline: "Learn anything. Anytime.",
     },
     {
-      title: "Schools & NGOs",
-      desc: "Empower large-scale learning with AI-driven tools and analytics. Let students learn independently while you track progress and generate insights through an institutional dashboard. Ideal for schools, NGOs, and education partners.",
-      tagline: "AI for classrooms and communities.",
+      title: "Teachers",
+      desc: "Create engaging lessons with AI-powered tools. Generate lesson plans, quizzes, and exams in seconds. Manage your classroom with an interactive workspace, resource library, and intelligent student progress tracking.",
+      tagline: "AI for modern educators.",
     },
   ];
 
