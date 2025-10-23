@@ -347,28 +347,13 @@ Note: These are the official subtopics from the Kenya CBC curriculum. Structure 
               />
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xs text-white/60">
-                <label htmlFor="tokens">Total tokens</label>
-                <input
-                  id="tokens"
-                  type="number"
-                  min={4000}
-                  step={1000}
-                  className="w-28 bg-[#0E0E10] border border-white/10 rounded-lg px-2 py-1"
-                  value={totalTokens}
-                  onChange={(e) => setTotalTokens(Number(e.target.value))}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3">
-                <Button onClick={onClose} className="bg-transparent border border-white/10 hover:bg-white/5">
-                  Cancel
-                </Button>
-                <Button onClick={handleGenerateTOC} className="bg-[#A855F7] hover:bg-[#9333EA] text-white shadow-[0_0_10px_rgba(168,85,247,0.15)]">
-                  Generate Table of Contents
-                </Button>
-              </div>
+            <div className="flex items-center justify-end gap-3">
+              <Button onClick={onClose} className="bg-transparent border border-white/10 hover:bg-white/5">
+                Cancel
+              </Button>
+              <Button onClick={handleGenerateTOC} className="bg-[#A855F7] hover:bg-[#9333EA] text-white shadow-[0_0_10px_rgba(168,85,247,0.15)]">
+                Generate Table of Contents
+              </Button>
             </div>
           </div>
         )}

@@ -170,6 +170,7 @@ export interface Subtask {
   order: number;
   range: SubtaskRange;
   targetTokens: number;
+  lengthHintsBySubtopic?: Array<{ chapterId: string; subtopicIndex: number; targetTokens: number; targetWords?: number }>;
   status: 'queued' | 'in-progress' | 'completed' | 'failed' | 'cancelled';
   result?: {
     outlineDelta: string[];
@@ -189,6 +190,7 @@ export interface WorkloadSplit {
     order: number;
     range: SubtaskRange;
     targetTokens: number;
+    lengthHintsBySubtopic?: Array<{ chapterId: string; subtopicIndex: number; targetTokens: number; targetWords?: number }>;
   }>;
   policy: {
     continuityHints: string;
@@ -268,4 +270,76 @@ export interface Lesson {
   };
   createdAt: number;
   updatedAt: number;
+}
+
+// ============================
+// Universal Planner: Public/Private Shapes
+// ============================
+
+export interface PlannerDepthProfile {
+  level: 'intro' | 'intermediate' | 'proficient';
+  rationale: string;
+}
+
+export interface PlannerPublicPlan {
+  learningOutcome: string;
+  depthProfile: PlannerDepthProfile;
+  toc: TOCChapter[] & Array<TOCChapter & { description?: string; learningGoals?: string[] }>;
+  immersiveLayers: {
+    byChapter: Array<{
+      chapterId: string;
+      exercises?: string[];
+      projects?: string[];
+      cases?: string[];
+      reflections?: string[];
+      crossLinks?: string[];
+    }>;
+  };
+  recommendedChapterCount: number;
+}
+
+export interface PlannerLengthEstimates {
+  totalWords: number;
+  totalTokens: number;
+  perChapter: Array<{ chapterId: string; words: number; tokens: number }>;
+  perSubtopic: Array<{ chapterId: string; subtopicIndex: number; words: number; tokens: number }>;
+}
+
+export interface CohesionBlockItemRef {
+  chapterId: string;
+  subtopicIndex: number;
+}
+
+export interface CohesionBlock {
+  blockId: string;
+  items: CohesionBlockItemRef[];
+  targetTokens: number;
+  rationale?: string;
+}
+
+export interface PlannerPrivatePlanMeta {
+  estimates: PlannerLengthEstimates;
+  chunking: { cohesionBlocks: CohesionBlock[] };
+  lengthPolicy: 'beast_mode' | 'balanced';
+  sequencingRationale?: string;
+}
+
+export interface PlannerDraft {
+  public: PlannerPublicPlan;
+  private: PlannerPrivatePlanMeta;
+}
+
+export interface ApprovedPlanDoc {
+  id: string;
+  uid: string;
+  grade: string;
+  subject: string;
+  topic: string;
+  specification?: string;
+  curriculumType?: 'cbc' | 'gcse' | 'upskill';
+  public: PlannerPublicPlan;
+  meta: PlannerPrivatePlanMeta;
+  createdAt: number;
+  updatedAt: number;
+  status: 'approved' | 'archived';
 }

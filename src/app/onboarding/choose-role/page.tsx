@@ -13,7 +13,6 @@ type RoleOption = {
   id: UserRole;
   title: string;
   description: string;
-  icon: string;
   fallbackRedirect: string;
 };
 
@@ -23,7 +22,6 @@ const ROLE_OPTIONS: RoleOption[] = [
     title: 'Individual Student',
     description:
       'Learn independently with AI-personalised study plans and real-time feedback.',
-    icon: '🎓',
     fallbackRedirect: '/onboarding/student',
   },
   {
@@ -31,7 +29,6 @@ const ROLE_OPTIONS: RoleOption[] = [
     title: 'Upskill Individual',
     description:
       'Accelerate your career with curated skill paths and adaptive AI learning tools.',
-    icon: '🚀',
     fallbackRedirect: '/onboarding/upskill',
   },
   {
@@ -39,7 +36,6 @@ const ROLE_OPTIONS: RoleOption[] = [
     title: 'Teacher',
     description:
       'Create and manage AI-assisted lessons, monitor student progress, and personalise learning experiences.',
-    icon: '👨‍🏫',
     fallbackRedirect: '/onboarding/teacher',
   },
 ];
@@ -49,7 +45,7 @@ const ROLE_REDIRECT: Record<UserRole, string> = {
   'institution-student': '/onboarding/student',
   'institution-admin': '/onboarding/institution',
   'upskill-individual': '/onboarding/upskill',
-  'teacher': '/onboarding/teacher',
+  teacher: '/onboarding/teacher',
 };
 
 export default function ChooseRolePage() {
@@ -71,42 +67,28 @@ export default function ChooseRolePage() {
 
   const pageLoading = authLoading || guardLoading;
 
-  const helpText = useMemo(() => {
-    if (profile?.role && profile?.onboarded) {
-      return 'You can change your role by selecting a new one below. This will require completing onboarding again.';
-    }
-    return 'Choose how you plan to use Learning.ai.';
-  }, [profile?.role, profile?.onboarded]);
-
-  const handleRoleSelect = async (role: UserRole) => {
-    if (!user || actionLoading) return;
+  const handleNext = async () => {
+    if (!user || actionLoading || !selectedRole) return;
 
     clearError();
-    setSelectedRole(role);
     setIsLoading(true);
 
     try {
-      const response = await withErrorHandling(() => setRole(user.uid, { role }));
-      if (!response) {
-        setSelectedRole(null);
-        return;
-      }
+      const response = await withErrorHandling(() => setRole(user.uid, { role: selectedRole }));
+      if (!response) return;
 
-      // Refresh profile to get updated role and onboarded status
       await refreshProfile();
 
       const destination =
         response.redirectUrl ||
-        ROLE_REDIRECT[role] ||
-        ROLE_OPTIONS.find((option) => option.id === role)?.fallbackRedirect;
+        ROLE_REDIRECT[selectedRole] ||
+        ROLE_OPTIONS.find((option) => option.id === selectedRole)?.fallbackRedirect;
 
       if (destination) {
-        // Small delay to ensure profile state is updated
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
         router.replace(destination);
       }
     } catch (err) {
-      setSelectedRole(null);
       console.error('Role selection error:', err);
     } finally {
       setIsLoading(false);
@@ -129,7 +111,7 @@ export default function ChooseRolePage() {
         <div className="rounded-2xl border border-red-200 bg-red-50 p-8 max-w-xl text-center">
           <h1 className="text-2xl font-semibold text-red-600 mb-4">We ran into an issue</h1>
           <p className="text-gray-600">
-            We couldn’t load your profile information. Please retry in a few moments.
+            We couldn't load your profile information. Please retry in a few moments.
           </p>
         </div>
       </div>
@@ -138,66 +120,87 @@ export default function ChooseRolePage() {
 
   // ===== MAIN CONTENT =====
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white text-gray-800 px-4 py-16">
-      <div className="text-center mb-16 max-w-2xl">
-        <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-100 rounded-xl mb-6">
-          <span className="text-2xl font-bold text-blue-600">L</span>
-        </div>
-        <h1 className="text-4xl font-semibold mb-3">Welcome to Learning.ai</h1>
-        <p className="text-lg text-gray-600">{helpText}</p>
-      </div>
+    <div className="min-h-screen flex items-center justify-between bg-white px-8 lg:px-16 py-8">
+      {/* Left Section - Form */}
+      <div className="w-full max-w-2xl">
+        {actionError && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+            {actionError}
+          </div>
+        )}
 
-      {actionError && (
-        <div className="mb-8 w-full max-w-xl rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
-          {actionError}
-        </div>
-      )}
+        <div className="space-y-3 mb-8">
+          {ROLE_OPTIONS.map((option) => {
+            const isSelected = selectedRole === option.id;
+            const isCurrentRole = profile?.role === option.id;
 
-      <div className="grid max-w-4xl gap-6 md:grid-cols-3 w-full">
-        {ROLE_OPTIONS.map((option) => {
-          const isSelected = selectedRole === option.id;
-          const isCurrentRole = profile?.role === option.id;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => handleRoleSelect(option.id)}
-              disabled={actionLoading && !isSelected}
-              className={`rounded-2xl border p-6 text-left transition-all duration-300 relative
-                ${
-                  isSelected
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
-                }
-                ${actionLoading && !isSelected ? 'opacity-60 cursor-not-allowed' : ''}
-              `}
-            >
-              {isCurrentRole && (
-                <div className="absolute top-3 right-3 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                  Current
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSelectedRole(option.id)}
+                disabled={actionLoading}
+                className={`w-full rounded-lg border-2 p-4 text-left transition-all duration-200 relative
+                  ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-50/50'
+                      : 'border-gray-300 border-dashed bg-white hover:border-gray-400'
+                  }
+                  ${actionLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                `}
+              >
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-base font-semibold text-gray-900">{option.title}</h3>
+                    {isCurrentRole && (
+                      <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">
+                        Current
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-600 leading-snug">{option.description}</p>
                 </div>
-              )}
-              <div className="text-3xl mb-4">{option.icon}</div>
-              <h3 className="text-xl font-medium mb-2">{option.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">
-                {option.description}
-              </p>
-              {isSelected && actionLoading && (
-                <div className="mt-4 flex items-center text-sm text-blue-600">
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />
-                  Setting up...
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="mt-10 text-sm text-gray-500">
-        Need help choosing?{' '}
-        <button className="text-blue-600 underline underline-offset-4 hover:text-blue-700">
-          Chat with our AI assistant
+        <button
+          onClick={handleNext}
+          disabled={!selectedRole || actionLoading}
+          className={`
+            px-8 py-3 rounded-lg font-medium text-white transition-all duration-200
+            flex items-center gap-2
+            ${
+              !selectedRole || actionLoading
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-indigo-900 hover:bg-indigo-800'
+            }
+          `}
+        >
+          {actionLoading ? (
+            <>
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              Setting up...
+            </>
+          ) : (
+            <>
+              Next
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </>
+          )}
         </button>
+      </div>
+
+      {/* Right Section - Illustration */}
+      <div className="hidden lg:flex items-center justify-center w-full max-w-xl">
+        <img
+          src="/choose role.svg"
+          alt="Choose your role illustration"
+          className="w-full h-auto"
+        />
       </div>
     </div>
   );

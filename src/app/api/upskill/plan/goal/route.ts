@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
       model: OPENAI_CHAT_MODEL,
       temperature: 0.4,
       response_format: { type: 'json_object' },
-      max_tokens: 1000,
       messages: [
         { role: 'system', content: systemTutorUpskill },
         { role: 'user', content: upskillPlannerPrompt({ goal, domain, currentLevel, timeline, hoursPerWeek, preferences, motivation }) },

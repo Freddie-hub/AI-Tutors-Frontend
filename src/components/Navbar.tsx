@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -28,9 +29,17 @@ export default function Navbar() {
       ${isScrolled ? "bg-black/50 backdrop-blur-md border-b border-white/10" : "bg-transparent border-transparent"}`}
     >
       {/* Logo */}
-      <div className="flex items-center space-x-2">
-        <span className="font-semibold text-lg tracking-wide">Learning.ai</span>
-      </div>
+      <a href="/" className="flex items-center space-x-2">
+        <Image
+          src="/logo.jpg"
+          alt="Mindhive logo"
+          width={28}
+          height={28}
+          className="rounded-sm"
+          priority
+        />
+        <span className="font-semibold text-lg tracking-wide text-white">Mindhive</span>
+      </a>
 
       {/* Navigation Links */}
       <div className="flex space-x-10 text-base font-medium">
