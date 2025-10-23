@@ -4,11 +4,11 @@ import { getPlan, updatePlanStatus, createLesson } from '@/lib/lessonStore';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { planId: string } }
+  { params }: { params: Promise<{ planId: string }> }
 ) {
   try {
     const user = await requireUser(req);
-    const { planId } = params;
+    const { planId } = await params;
     
     // Get the plan
     const plan = await getPlan(planId);

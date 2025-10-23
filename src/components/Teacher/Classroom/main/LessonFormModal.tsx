@@ -13,6 +13,7 @@ type Props = {
 export default function LessonFormModal({ open, onClose }: Props) {
   const { setLesson } = useLesson();
   
+  const [grade, setGrade] = useState<string>('');
   const [subject, setSubject] = useState<string>('');
   const [topic, setTopic] = useState<string>('');
   const [specification, setSpecification] = useState<string>('');
@@ -20,13 +21,14 @@ export default function LessonFormModal({ open, onClose }: Props) {
   if (!open) return null;
 
   const createLesson = () => {
-    if (!subject.trim() || !topic.trim()) {
-      alert('Please provide both a subject and topic.');
+    if (!grade.trim() || !subject.trim() || !topic.trim()) {
+      alert('Please provide grade, subject, and topic.');
       return;
     }
     
     setLesson({
       id: Date.now().toString(),
+      grade,
       subject,
       topic,
       specification,
@@ -43,6 +45,10 @@ export default function LessonFormModal({ open, onClose }: Props) {
           <button onClick={onClose} className="text-white/60 hover:text-white"></button>
         </div>
         <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-white/70 mb-1">Grade</label>
+            <input type="text" className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2" placeholder="e.g., Grade 7, Form 2, Year 9" value={grade} onChange={(e) => setGrade(e.target.value)} />
+          </div>
           <div>
             <label className="block text-sm text-white/70 mb-1">Subject</label>
             <input type="text" className="w-full bg-[#0E0E10] border border-white/10 rounded-xl px-3 py-2" placeholder="e.g., Mathematics, Science, History" value={subject} onChange={(e) => setSubject(e.target.value)} />
