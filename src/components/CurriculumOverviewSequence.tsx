@@ -40,6 +40,7 @@ export default function CurriculumOverviewSequence() {
   const reducedMotion = useReducedMotionPref();
 
   const lastIndex = panels.length - 1;
+  const lockedScrollYRef = useRef<number | null>(null);
 
   // Preload images to avoid flash during swaps
   useEffect(() => {
@@ -67,6 +68,41 @@ export default function CurriculumOverviewSequence() {
   }, []);
 
   const canIntercept = activeInView && index < lastIndex; // lock while not at last
+
+  // Lock page scroll when the first panel is fully visible and the sequence is active
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+
+    const lock = () => {
+      if (lockedScrollYRef.current != null) return; // already locked
+      const y = window.scrollY || window.pageYOffset || 0;
+      lockedScrollYRef.current = y;
+      // Prevent document scrolling while allowing internal animations
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+      document.body.style.top = `-${y}px`;
+    };
+
+    const unlock = () => {
+      if (lockedScrollYRef.current == null) return;
+      document.documentElement.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      const y = lockedScrollYRef.current;
+      document.body.style.top = "";
+      lockedScrollYRef.current = null;
+      // Restore scroll position
+      window.scrollTo(0, y);
+    };
+
+    if (canIntercept) lock(); else unlock();
+
+    return () => {
+      // Ensure unlock on unmount
+      unlock();
+    };
+  }, [canIntercept]);
 
   const throttledStep = useCallback(
     (dir: 1 | -1) => {
