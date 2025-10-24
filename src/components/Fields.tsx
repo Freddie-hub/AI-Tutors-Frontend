@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import CurriculumOverviewSequence from "@/components/CurriculumOverviewSequence";
+import CBCOverview from "./CBCOverview";
 
 export default function Fields() {
   const [isVisible, setIsVisible] = useState(false);
@@ -80,7 +80,7 @@ export default function Fields() {
 
       {/* Curriculum Overview Sequence: CBC → Teacher → Upskill → Cambridge */}
       <div className="w-full">
-        <CurriculumOverviewSequence />
+        <CBCOverview />
       </div>
 
       <style jsx>{`
