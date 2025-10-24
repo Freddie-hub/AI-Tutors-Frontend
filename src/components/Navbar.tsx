@@ -6,14 +6,27 @@ import Image from "next/image";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
   const pathname = usePathname();
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
+      setIsVisible(false);
+
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setIsVisible(true);
+      }, 300); // show navbar again 300ms after scrolling stops
     };
+
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const links = [
@@ -25,8 +38,15 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 w-full z-50 flex items-center justify-between px-8 py-5 transition-all duration-500
-      ${isScrolled ? "bg-black/50 backdrop-blur-md border-b border-white/10" : "bg-transparent border-transparent"}`}
+      className={`fixed top-0 left-0 w-full z-50 flex items-center justify-between px-8 py-5 border-b
+      transition-all duration-700 ease-in-out
+      ${
+        isScrolled
+          ? "bg-black border-white/10"
+          : "bg-transparent border-transparent"
+      }
+      ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-5"}
+      `}
     >
       {/* Logo */}
       <a href="/" className="flex items-center space-x-2">
@@ -38,7 +58,9 @@ export default function Navbar() {
           className="rounded-sm"
           priority
         />
-        <span className="font-semibold text-lg tracking-wide text-white">Mindhive</span>
+        <span className="font-semibold text-lg tracking-wide text-white">
+          Mindhive
+        </span>
       </a>
 
       {/* Navigation Links */}
