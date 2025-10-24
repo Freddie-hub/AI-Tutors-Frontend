@@ -18,14 +18,14 @@ export default function HeroSection() {
   const nextIndex = (currentIndex + 1) % slides.length;
 
   return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0a1f1c] via-[#0f2a26] to-[#081a17]">
+    <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0a1410] via-[#0d1912] to-[#080f0c]">
       <Navbar />
 
       <div className="relative z-10 flex items-center min-h-screen pt-32 pb-20 px-6 md:px-12 lg:px-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center w-full max-w-7xl mx-auto">
 
-          {/* Left: Text Section */}
-          <div className="text-left space-y-6 -mt-40">
+          {/* Left: Text Section (slightly lowered) */}
+          <div className="text-left space-y-6 mt-4">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
               AI-Powered Learning{" "}
               <span className="text-[#00E18A]">Beyond</span>{" "}
@@ -67,34 +67,55 @@ export default function HeroSection() {
 
           {/* Right: Smooth Peek Transition Carousel */}
           <div className="hidden lg:flex relative h-[480px] w-full flex-col justify-start items-center overflow-visible">
-            {/* Main Slide */}
-            <motion.div
-              key={`main-${currentIndex}`}
-              className="absolute top-0 w-full h-[340px] rounded-2xl overflow-hidden bg-[#0a1f1c] shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
-              initial={{ opacity: 0, y: 50, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -40, scale: 0.95 }}
-              transition={{ duration: 0.8, ease: "easeInOut" }}
-            >
-              <img
-                src={slides[currentIndex]}
-                alt={`Slide ${currentIndex + 1}`}
-                className="w-full h-full object-contain rounded-xl"
-              />
-            </motion.div>
+            <AnimatePresence mode="popLayout">
+              {/* Main Slide */}
+              <motion.div
+                key={`main-${currentIndex}`}
+                className="absolute top-0 left-0 right-0 mx-auto w-full h-[340px] rounded-2xl overflow-hidden bg-[#0a1410] shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
+                initial={{ 
+                  top: 360, 
+                  height: 120,
+                  width: 'auto',
+                  scale: 0.95,
+                  opacity: 0.7
+                }}
+                animate={{ 
+                  top: 0,
+                  height: 340,
+                  width: '100%',
+                  scale: 1,
+                  opacity: 1
+                }}
+                exit={{ 
+                  top: -50,
+                  scale: 0.9,
+                  opacity: 0
+                }}
+                transition={{ 
+                  duration: 1.2, 
+                  ease: [0.43, 0.13, 0.23, 0.96]
+                }}
+              >
+                <img
+                  src={slides[currentIndex]}
+                  alt={`Slide ${currentIndex + 1}`}
+                  className="w-full h-full object-contain rounded-xl"
+                />
+              </motion.div>
+            </AnimatePresence>
 
-            {/* Next Slide (visible peek below) */}
+            {/* Next Slide (peek below) */}
             <motion.div
               key={`peek-${nextIndex}`}
-              className="absolute top-[360px] w-full h-[120px] rounded-2xl overflow-hidden bg-[#0a1f1c] shadow-[0_8px_40px_rgba(0,0,0,0.4)] opacity-70"
-              initial={{ y: 20, scale: 0.9, opacity: 0 }}
-              animate={{ y: 0, scale: 0.95, opacity: 1 }}
-              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute top-[360px] w-auto max-w-full h-[120px] rounded-2xl overflow-hidden bg-[#0a1410] shadow-[0_8px_40px_rgba(0,0,0,0.4)] opacity-70"
+              initial={{ y: 20, scale: 0.85, opacity: 0 }}
+              animate={{ y: 0, scale: 0.95, opacity: 0.7 }}
+              transition={{ duration: 1, ease: "easeOut" }}
             >
               <img
                 src={slides[nextIndex]}
                 alt={`Next slide`}
-                className="w-full h-full object-contain rounded-xl"
+                className="h-full w-auto object-contain rounded-xl"
               />
             </motion.div>
           </div>
