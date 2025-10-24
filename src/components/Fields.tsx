@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import CBCOverview from "./CBCOverview";
+import CurriculumOverviewSequence from "./CurriculumOverviewSequence";
 
 export default function Fields() {
   const [isVisible, setIsVisible] = useState(false);
@@ -78,9 +78,9 @@ export default function Fields() {
         elevate your skills.
       </p>
 
-      {/* CBC Overview Component Inside Fields Section */}
+      {/* Curriculum Overview Sequence: CBC → Teacher → Upskill → Cambridge */}
       <div className="w-full">
-        <CBCOverview />
+        <CurriculumOverviewSequence />
       </div>
 
       <style jsx>{`
