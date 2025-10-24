@@ -12,7 +12,6 @@ export default function Fields() {
   const [gcseTransform, setGcseTransform] = useState(100);
   const [scrollLocked, setScrollLocked] = useState(false);
   const [overlayProgress, setOverlayProgress] = useState(0); // 0 -> CBC only, 1 -> GCSE fully covering
-  const [stackDone, setStackDone] = useState(false); // prevents re-triggering lock when passed
   
   const headlineRef = useRef<HTMLDivElement>(null);
   const cbcRef = useRef<HTMLDivElement>(null);
@@ -63,7 +62,7 @@ export default function Fields() {
   // 1) Detect when CBC is fully in view -> lock page scroll and start overlay phase
   useEffect(() => {
     const onScrollCheckFullView = () => {
-      if (scrollLocked || stackDone) return;
+      if (scrollLocked) return;
       if (!cbcRef.current) return;
 
       const rect = cbcRef.current.getBoundingClientRect();
@@ -80,7 +79,7 @@ export default function Fields() {
     window.addEventListener("scroll", onScrollCheckFullView, { passive: true });
     onScrollCheckFullView();
     return () => window.removeEventListener("scroll", onScrollCheckFullView);
-  }, [scrollLocked, stackDone]);
+  }, [scrollLocked]);
 
   // 2) While locked, capture wheel/touch and drive GCSE slide. Unlock when done.
   useEffect(() => {
@@ -90,14 +89,13 @@ export default function Fields() {
       setOverlayProgress((prev) => {
         const next = Math.min(1, Math.max(0, prev + delta));
         setGcseTransform(100 - next * 100);
-        if (next >= 1) {
-          // Completed overlay: unlock scroll and mark as done
+        if (next >= 1 || next <= 0) {
+          // Completed overlay (either direction): unlock scroll
           setTimeout(() => {
             document.body.style.overflow = "auto";
             setScrollLocked(false);
-            setStackDone(true);
-            // Nudge scroll position by 1px so we don't immediately retrigger
-            window.scrollBy({ top: 1 });
+            // Nudge scroll position slightly so we don't immediately retrigger
+            window.scrollBy({ top: next >= 1 ? 1 : -1 });
           }, 0);
         }
         return next;
@@ -132,9 +130,9 @@ export default function Fields() {
     window.addEventListener("touchmove", onTouchMove, { passive: false });
 
     return () => {
-      window.removeEventListener("wheel", onWheel as any);
-      window.removeEventListener("touchstart", onTouchStart as any);
-      window.removeEventListener("touchmove", onTouchMove as any);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
     };
   }, [scrollLocked]);
 
