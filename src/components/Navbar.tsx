@@ -26,7 +26,11 @@ export default function Navbar() {
   return (
     <nav
       className={`fixed top-0 left-0 w-full z-50 flex items-center justify-between px-8 py-5 transition-all duration-500
-      ${isScrolled ? "bg-black/50 backdrop-blur-md border-b border-white/10" : "bg-transparent border-transparent"}`}
+      ${
+        isScrolled
+          ? "bg-black/50 backdrop-blur-md border-b border-white/10"
+          : "bg-transparent border-transparent"
+      }`}
     >
       {/* Logo */}
       <a href="/" className="flex items-center space-x-2">
@@ -38,7 +42,9 @@ export default function Navbar() {
           className="rounded-sm"
           priority
         />
-        <span className="font-semibold text-lg tracking-wide text-white">Mindhive</span>
+        <span className="font-semibold text-lg tracking-wide text-white">
+          Mindhive
+        </span>
       </a>
 
       {/* Navigation Links */}
@@ -50,11 +56,11 @@ export default function Navbar() {
               key={link.name}
               href={link.href}
               className={`relative text-white transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:transition-all after:duration-300
-                ${
-                  isActive
-                    ? "after:w-full after:bg-orange-400"
-                    : "after:w-0 hover:after:w-full after:bg-orange-400"
-                }`}
+              ${
+                isActive
+                  ? "after:w-full after:bg-[#00E18A]"
+                  : "after:w-0 hover:after:w-full after:bg-[#00E18A]"
+              }`}
             >
               {link.name}
             </a>

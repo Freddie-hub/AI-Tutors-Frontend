@@ -1,66 +1,120 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 
 export default function HeroSection() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const slides = ["/slide1.png", "/slide2.png", "/slide3.png"];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % slides.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [slides.length]);
+
+  const nextIndex = (currentIndex + 1) % slides.length;
+
   return (
-    <section className="relative h-screen w-full overflow-hidden">
-      {/* Background Image with Enhanced Overlay */}
-      <Image
-        src="/hero.jpg"
-        alt="Learning background"
-        fill
-        className="object-cover scale-105"
-        priority
-      />
-      {/* Consistent gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 via-slate-800/70 to-slate-900/80" />
-      
+    <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0a1f1c] via-[#0f2a26] to-[#081a17]">
       <Navbar />
 
-      {/* Centered Content Wrapper */}
-      <div className="relative z-10 flex items-center justify-start h-full px-6 md:px-20 lg:px-32">
-        {/* Screenshot-style Container */}
-        <div className="relative group max-w-3xl">
-          {/* Subtle glow effect */}
-          <div className="absolute -inset-0.5 bg-slate-700/50 rounded-2xl blur-sm" />
-          
-          {/* Main screenshot card */}
-          <div className="relative bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl rounded-2xl p-10 md:p-14">
-            {/* Heading */}
-            <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight mb-5">
-              Empower Your Growth Journey
+      <div className="relative z-10 flex items-center min-h-screen pt-32 pb-20 px-6 md:px-12 lg:px-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center w-full max-w-7xl mx-auto">
+
+          {/* Left: Text Section */}
+          <div className="text-left space-y-6 -mt-40">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
+              AI-Powered Learning{" "}
+              <span className="text-[#00E18A]">Beyond</span>{" "}
+              <span className="italic font-serif text-slate-300">the Classroom</span>
             </h1>
 
-            {/* Subtext */}
-            <p className="text-slate-300 text-base md:text-lg mb-8 leading-relaxed">
-              Step into the future of learning. Explore curated paths designed to
-              help you master real-world skills, achieve your goals, and unlock
-              your full potential.
+            <p className="text-slate-300 text-base md:text-lg leading-relaxed max-w-xl">
+              Master CBC and British curricula with personalized AI lessons.
+              From students seeking structured guidance to professionals
+              upskilling and teachers creating engaging content — adaptive
+              learning for everyone.
             </p>
 
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button className="group/btn bg-gradient-to-r from-blue-600 to-blue-500 text-white px-8 py-3 rounded-lg font-medium hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <button className="group bg-[#00E18A] text-slate-900 px-8 py-4 rounded-xl font-semibold hover:bg-[#00c978] hover:shadow-lg hover:shadow-[#00E18A]/30 transition-all duration-300">
                 <span className="flex items-center justify-center gap-2">
-                  Get Started
-                  <svg className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  Start Learning
+                  <svg
+                    className="w-5 h-5 group-hover:translate-x-0.5 transition-transform"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
+                    />
                   </svg>
                 </span>
               </button>
-              
-              <button className="border border-slate-600 text-slate-200 px-8 py-3 rounded-lg font-medium hover:bg-slate-800 hover:border-slate-500 transition-all duration-300">
-                Learn More
+
+              <button className="border-2 border-slate-600 text-slate-200 px-8 py-4 rounded-xl font-semibold hover:bg-slate-800/50 hover:border-slate-500 transition-all duration-300">
+                View Features
               </button>
             </div>
+          </div>
+
+          {/* Right: Smooth Peek Transition Carousel */}
+          <div className="hidden lg:flex relative h-[480px] w-full flex-col justify-start items-center overflow-visible">
+            {/* Main Slide */}
+            <motion.div
+              key={`main-${currentIndex}`}
+              className="absolute top-0 w-full h-[340px] rounded-2xl overflow-hidden bg-[#0a1f1c] shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
+              initial={{ opacity: 0, y: 50, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -40, scale: 0.95 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+            >
+              <img
+                src={slides[currentIndex]}
+                alt={`Slide ${currentIndex + 1}`}
+                className="w-full h-full object-contain rounded-xl"
+              />
+            </motion.div>
+
+            {/* Next Slide (visible peek below) */}
+            <motion.div
+              key={`peek-${nextIndex}`}
+              className="absolute top-[360px] w-full h-[120px] rounded-2xl overflow-hidden bg-[#0a1f1c] shadow-[0_8px_40px_rgba(0,0,0,0.4)] opacity-70"
+              initial={{ y: 20, scale: 0.9, opacity: 0 }}
+              animate={{ y: 0, scale: 0.95, opacity: 1 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+            >
+              <img
+                src={slides[nextIndex]}
+                alt={`Next slide`}
+                className="w-full h-full object-contain rounded-xl"
+              />
+            </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Scroll indicator */}
+      {/* Scroll Indicator */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-bounce">
-        <svg className="w-6 h-6 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        <svg
+          className="w-6 h-6 text-white/60"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 14l-7 7m0 0l-7-7m7 7V3"
+          />
         </svg>
       </div>
     </section>
