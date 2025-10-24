@@ -1,89 +1,104 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-// Note: This hero button now redirects to the full auth page with Google and Email options.
+import { useEffect, useState, useRef } from "react";
+import CBCOverview from "./CBCOverview";
 
 export default function Fields() {
-  const router = useRouter();
+  const [isVisible, setIsVisible] = useState(false);
+  const [showThinking, setShowThinking] = useState(false);
+  const [showHeadline, setShowHeadline] = useState(false);
+  const [dots, setDots] = useState("");
+  const headlineRef = useRef<HTMLDivElement>(null);
 
-  const handleRegister = async () => {
-    router.push("/auth");
-  };
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isVisible) {
+          setIsVisible(true);
+          setShowThinking(true);
 
-  const cards = [
-    {
-      title: "CBC Curriculum",
-      desc: "Master Kenya's Competency-Based Curriculum with AI-personalized lessons. Study independently under Autopilot Mode as the AI guides you through structured lessons, assessments, and projects aligned with CBC standards.",
-      tagline: "Aligned with CBC. Powered by AI.",
-    },
-    {
-      title: "British Curriculum",
-      desc: "Learn under Cambridge and Edexcel frameworks with adaptive AI lessons. Enjoy personalized revision paths, automated assessments, and smart feedback to help you excel in IGCSE or A-Levels.",
-      tagline: "Global standards. Personal pace.",
-    },
-    {
-      title: "Corporate & Individual Learning",
-      desc: "Upskill or explore new fields — from AI and coding to leadership and design. Set your learning goal, and the AI builds a custom study roadmap with adaptive challenges and instant feedback.",
-      tagline: "Learn anything. Anytime.",
-    },
-    {
-      title: "Teachers",
-      desc: "Create engaging lessons with AI-powered tools. Generate lesson plans, quizzes, and exams in seconds. Manage your classroom with an interactive workspace, resource library, and intelligent student progress tracking.",
-      tagline: "AI for modern educators.",
-    },
-  ];
+          // Show "thinking..." animation for 2 seconds before headline
+          setTimeout(() => {
+            setShowThinking(false);
+            setShowHeadline(true);
+          }, 2000);
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    if (headlineRef.current) observer.observe(headlineRef.current);
+
+    return () => {
+      if (headlineRef.current) observer.unobserve(headlineRef.current);
+    };
+  }, [isVisible]);
+
+  useEffect(() => {
+    if (showThinking) {
+      let count = 0;
+      const interval = setInterval(() => {
+        count++;
+        const cycle = count % 4;
+        if (cycle === 1) setDots(".");
+        else if (cycle === 2) setDots("..");
+        else if (cycle === 3) setDots("...");
+        else setDots("");
+      }, 250);
+
+      return () => clearInterval(interval);
+    }
+  }, [showThinking]);
 
   return (
-    <section className="relative min-h-screen bg-[#0b0b0f] flex flex-col items-center justify-center overflow-hidden px-6 py-20 text-center">
-      <div className="max-w-2xl mb-10">
-        <h1 className="text-2xl md:text-4xl font-semibold text-white leading-snug">
-          Learn at the speed of <span className="italic text-gray-300">thought</span>
-        </h1>
-        <p className="text-gray-400 mt-3 text-sm md:text-base">
-          AI-personalized courses, gamified lessons, and real-time feedback to elevate your skills.
-        </p>
-      </div>
-
-      <button
-        onClick={handleRegister}
-        className={`mb-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm px-6 py-2 rounded-full transition`}
+    <section className="min-h-screen bg-white flex flex-col items-center justify-start px-6 py-20 text-center">
+      {/* Headline at the top */}
+      <div
+        ref={headlineRef}
+        className="max-w-4xl mb-6 min-h-[80px] flex items-center justify-center"
       >
-        Register Now →
-      </button>
+        {showThinking && !showHeadline && (
+          <p className="text-3xl md:text-4xl text-gray-700 italic animate-fade-in">
+            thinking{dots}
+          </p>
+        )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-        {cards.map((card, i) => (
-          <div
-            key={i}
-            className="group relative w-64 h-80 rounded-3xl overflow-hidden 
-                       bg-gradient-to-br from-white/10 via-white/5 to-transparent
-                       border border-white/15 backdrop-blur-2xl 
-                       shadow-[0_4px_60px_rgba(255,255,255,0.05)]
-                       hover:scale-[1.02] transition duration-700 ease-out
-                       flex flex-col justify-between p-5"
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-white/10 pointer-events-none" />
-            <div className="absolute inset-0 rounded-3xl shadow-[inset_0_0_60px_rgba(0,0,0,0.6)] pointer-events-none" />
-            <div className="absolute inset-0 rounded-3xl border border-white/20 shadow-[inset_0_0_20px_rgba(255,255,255,0.25),0_0_25px_rgba(255,255,255,0.05)] pointer-events-none" />
-
-            <div className="relative z-10 text-left flex flex-col justify-between h-full">
-              <div>
-                <h3 className="text-white text-sm md:text-base font-semibold mb-2">
-                  {card.title}
-                </h3>
-                <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
-                  {card.desc}
-                </p>
-              </div>
-              <p className="text-gray-400 text-[0.7rem] mt-3 italic">
-                {card.tagline}
-              </p>
-            </div>
+        {showHeadline && (
+          <div className="animate-fade-in">
+            <h1 className="text-3xl md:text-5xl font-semibold text-gray-900 whitespace-nowrap">
+              Learn at the speed of{" "}
+              <span className="italic text-gray-600">thought</span>
+            </h1>
           </div>
-        ))}
+        )}
       </div>
 
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[70%] h-[20rem] bg-gradient-radial from-white/10 to-transparent blur-3xl pointer-events-none" />
+      <p className="text-gray-500 mt-2 text-sm md:text-base max-w-2xl mb-12">
+        AI-personalized courses, gamified lessons, and real-time feedback to
+        elevate your skills.
+      </p>
+
+      {/* CBC Overview Component Inside Fields Section */}
+      <div className="w-full">
+        <CBCOverview />
+      </div>
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.8s ease-out forwards;
+        }
+      `}</style>
     </section>
   );
 }
