@@ -13,13 +13,14 @@ const GCSEOverview = () => {
   ];
 
   return (
-    <div className="relative w-full max-w-[1200px] mx-auto bg-gradient-to-br from-[#0a1014] via-[#0d1219] to-[#080c0f] overflow-visible rounded-xl">
+    <div className="relative w-full max-w-[1200px] mx-auto bg-gradient-to-br from-[#0a1410] via-[#0d1912] to-[#080f0c] overflow-visible rounded-xl">
       <div className="relative min-h-[500px] md:min-h-[450px] p-8 md:p-16">
+        
         {/* Left Content */}
         <div className="relative z-10 md:w-[55%] space-y-6">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
             GCSE Adaptive Learning —{" "}
-            <span className="text-[#007BFF]">AI-Guided Success</span>
+            <span className="text-[#00E18A]">AI-Guided Success</span>
           </h1>
 
           <p className="text-base md:text-lg text-gray-300 leading-relaxed">
@@ -33,7 +34,7 @@ const GCSEOverview = () => {
               <div key={index} className="flex items-start gap-3 group">
                 <div className="flex-shrink-0 mt-1">
                   <svg
-                    className="w-6 h-6 text-[#007BFF] group-hover:scale-110 transition-transform"
+                    className="w-6 h-6 text-[#00E18A] group-hover:scale-110 transition-transform"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -46,7 +47,7 @@ const GCSEOverview = () => {
                     />
                   </svg>
                 </div>
-                <p className="text-base md:text-lg text-white font-medium group-hover:text-[#007BFF] transition-colors">
+                <p className="text-base md:text-lg text-white font-medium group-hover:text-[#00E18A] transition-colors">
                   {feature}
                 </p>
               </div>
@@ -63,9 +64,9 @@ const GCSEOverview = () => {
           />
         </div>
 
-        {/* Background Glow */}
-        <div className="absolute bottom-[-3%] right-[-3%] w-56 h-56 bg-[#007BFF] opacity-10 blur-3xl rounded-full pointer-events-none"></div>
-        <div className="absolute top-0 left-0 w-56 h-56 bg-[#007BFF] opacity-10 blur-3xl rounded-full pointer-events-none"></div>
+        {/* Subtle Background Glow */}
+        <div className="absolute bottom-[-3%] right-[-3%] w-56 h-56 bg-[#00E18A] opacity-10 blur-3xl rounded-full pointer-events-none"></div>
+        <div className="absolute top-0 left-0 w-56 h-56 bg-[#00E18A] opacity-10 blur-3xl rounded-full pointer-events-none"></div>
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ export default function Navbar() {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         setIsVisible(true);
-      }, 300); // show navbar again 300ms after scrolling stops
+      }, 2000); // wait 2 seconds after scrolling stops before showing navbar again
     };
 
     window.addEventListener("scroll", handleScroll);

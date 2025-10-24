@@ -12,12 +12,14 @@ export default function Fields() {
   const [gcseTransform, setGcseTransform] = useState(100);
   const [scrollLocked, setScrollLocked] = useState(false);
   const [overlayProgress, setOverlayProgress] = useState(0); // 0 -> CBC only, 1 -> GCSE fully covering
+  const [gcseOpacity, setGcseOpacity] = useState(0); // Control GCSE visibility
   
   const headlineRef = useRef<HTMLDivElement>(null);
   const cbcRef = useRef<HTMLDivElement>(null);
   const gcseRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const touchStartYRef = useRef<number | null>(null);
+  const lastUnlockRef = useRef<number>(0);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -67,12 +69,16 @@ export default function Fields() {
 
       const rect = cbcRef.current.getBoundingClientRect();
       const fullyInView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      const cooldownPassed = Date.now() - lastUnlockRef.current > 250;
       if (fullyInView) {
-        // Lock body scroll and prepare overlay
-        setScrollLocked(true);
-        setOverlayProgress(0);
-        setGcseTransform(100);
-        document.body.style.overflow = "hidden";
+        if (cooldownPassed) {
+          // Lock body scroll and prepare overlay
+          setScrollLocked(true);
+          setOverlayProgress(0);
+          setGcseTransform(100);
+          setGcseOpacity(0); // Start with GCSE invisible
+          document.body.style.overflow = "hidden";
+        }
       }
     };
 
@@ -89,13 +95,21 @@ export default function Fields() {
       setOverlayProgress((prev) => {
         const next = Math.min(1, Math.max(0, prev + delta));
         setGcseTransform(100 - next * 100);
+        
+        // Fade in GCSE as it slides up, fade out when sliding down
+        // Only show GCSE when it's more than 10% into the viewport
+        if (next > 0.1) {
+          setGcseOpacity(1);
+        } else {
+          setGcseOpacity(0);
+        }
+        
         if (next >= 1 || next <= 0) {
           // Completed overlay (either direction): unlock scroll
           setTimeout(() => {
             document.body.style.overflow = "auto";
             setScrollLocked(false);
-            // Nudge scroll position slightly so we don't immediately retrigger
-            window.scrollBy({ top: next >= 1 ? 1 : -1 });
+            lastUnlockRef.current = Date.now();
           }, 0);
         }
         return next;
@@ -105,7 +119,7 @@ export default function Fields() {
     const onWheel = (e: WheelEvent) => {
       // Prevent page scroll and use delta to animate
       e.preventDefault();
-      const sensitivity = 0.0025; // tune wheel sensitivity
+      const sensitivity = 0.0008; // Much slower, smoother wheel sensitivity
       advance(e.deltaY * sensitivity);
     };
 
@@ -120,7 +134,7 @@ export default function Fields() {
       if (startY == null) return;
       const currentY = e.touches[0].clientY;
       const dy = startY - currentY; // swipe up -> positive
-      const sensitivity = 0.01; // tune touch sensitivity
+      const sensitivity = 0.004; // Slower touch sensitivity
       advance(dy * sensitivity);
       touchStartYRef.current = currentY;
     };
@@ -186,8 +200,10 @@ export default function Fields() {
             className={`${scrollLocked ? "fixed inset-0" : "absolute top-0 left-0 right-0"} z-20`}
             style={{ 
               transform: `translateY(${gcseTransform}vh)`,
-              transition: 'transform 0.05s linear',
-              willChange: 'transform'
+              opacity: gcseOpacity,
+              transition: 'transform 0.15s ease-out, opacity 0.2s ease-out',
+              willChange: 'transform, opacity',
+              pointerEvents: gcseOpacity === 0 ? 'none' : 'auto'
             }}
           >
             <GCSEOverview />
