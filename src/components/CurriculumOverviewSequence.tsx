@@ -7,21 +7,22 @@ import CambridgeOverview from "./CambridgeOverview";
 
 export default function CurriculumOverviewSequence() {
   return (
-    <div className="relative w-full h-screen overflow-y-scroll snap-y snap-mandatory">
-      {/* Each section fills the entire viewport and snaps into place */}
-      <section className="h-screen w-full flex items-center justify-center snap-start snap-always">
+    // Track height equals 4 x 100vh so the sequence is pinned while you scroll through it
+    <div className="relative w-full h-[400vh]">
+      {/* Sticky stacking cards – later ones overlap earlier ones */}
+      <section className="sticky top-0 h-screen flex items-center justify-center z-10">
         <CBCOverview />
       </section>
-      
-      <section className="h-screen w-full flex items-center justify-center snap-start snap-always">
+
+      <section className="sticky top-0 h-screen flex items-center justify-center z-20">
         <TeacherOverview />
       </section>
-      
-      <section className="h-screen w-full flex items-center justify-center snap-start snap-always">
+
+      <section className="sticky top-0 h-screen flex items-center justify-center z-30">
         <UpskillOverview />
       </section>
-      
-      <section className="h-screen w-full flex items-center justify-center snap-start snap-always">
+
+      <section className="sticky top-0 h-screen flex items-center justify-center z-40">
         <CambridgeOverview />
       </section>
     </div>

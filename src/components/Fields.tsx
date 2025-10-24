@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import CurriculumOverviewSequence from "./CurriculumOverviewSequence";
+import CurriculumOverviewSequence from "@/components/CurriculumOverviewSequence";
 
 export default function Fields() {
   const [isVisible, setIsVisible] = useState(false);

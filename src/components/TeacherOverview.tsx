@@ -50,7 +50,7 @@ const TeacherOverview = () => {
         {/* Image - No animation, positioned */}
         <div className="absolute bottom-[-3%] right-[-3%] w-[45%] md:w-[42%] lg:w-[40%] h-auto">
           <img
-            src="/teacheroverview.jpg"
+            src="/Teacher.jpeg"
             alt="Teacher Overview"
             className="w-full h-auto object-cover shadow-2xl rounded-tl-3xl"
           />
