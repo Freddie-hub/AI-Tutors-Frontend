@@ -1,10 +1,6 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 const UpskillOverview = () => {
-  const [imageVisible, setImageVisible] = useState(false);
-
   const features = [
     "Micro-lessons in tech, business, and creative skills.",
     "Hands-on projects with instant AI feedback.",
@@ -12,11 +8,6 @@ const UpskillOverview = () => {
     "Practice, quizzes, and real-world challenges.",
     "Track growth with XP, streaks, and achievements.",
   ];
-
-  useEffect(() => {
-    const timer = setTimeout(() => setImageVisible(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
     <div className="relative w-full max-w-[1200px] mx-auto bg-gradient-to-br from-[#0a1410] via-[#0d1912] to-[#080f0c] overflow-visible rounded-xl">
@@ -56,12 +47,8 @@ const UpskillOverview = () => {
           </div>
         </div>
 
-        {/* Image - Smooth slide-in from right */}
-        <div
-          className={`absolute bottom-[-3%] right-[-3%] w-[45%] md:w-[42%] lg:w-[40%] h-auto transition-transform duration-1000 ease-out ${
-            imageVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-          }`}
-        >
+        {/* Image - No animation, positioned */}
+        <div className="absolute bottom-[-3%] right-[-3%] w-[45%] md:w-[42%] lg:w-[40%] h-auto">
           <img
             src="/upskill.jpeg"
             alt="Upskill Overview"
