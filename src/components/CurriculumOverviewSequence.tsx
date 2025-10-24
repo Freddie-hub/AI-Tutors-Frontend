@@ -49,13 +49,18 @@ export default function CurriculumOverviewSequence() {
     });
   }, []);
 
-  // Intersection observer to know when to engage scroll handling
+  // Intersection observer to know when to engage scroll handling.
+  // Only activate when the first panel is fully visible in the viewport
   useEffect(() => {
     if (!containerRef.current || typeof window === "undefined") return;
     const el = containerRef.current;
     const observer = new IntersectionObserver(
-      ([entry]) => setActiveInView(entry.isIntersecting),
-      { threshold: 0.2 }
+      ([entry]) => {
+        // Require near-fully visible to start intercepting (safer than 1.0 due to rounding)
+        const fullyVisible = entry.intersectionRatio >= 0.98;
+        setActiveInView(fullyVisible);
+      },
+      { threshold: [0, 0.25, 0.5, 0.75, 0.98, 1] }
     );
     observer.observe(el);
     return () => observer.unobserve(el);
