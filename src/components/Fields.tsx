@@ -101,35 +101,40 @@ export default function Fields() {
     if (!scrollLocked) return;
 
     const advance = (delta: number) => {
-      const lastIndex = overlayComponents.length - 1;
-      const maxStage = overlayComponents.length; // inclusive end
+  const lastIndex = overlayComponents.length - 1;
+  const maxStage = overlayComponents.length; // inclusive end (e.g., 3 for 3 overlays)
 
       const currentStage = overlayRef.current.index + overlayRef.current.progress;
       const rawNextStage = currentStage + delta;
       const clampedNextStage = Math.min(maxStage, Math.max(0, rawNextStage));
 
       // If we are hitting an edge and trying to go further, accumulate overscroll
-      const atStart = clampedNextStage === 0;
-      const atEnd = clampedNextStage === maxStage;
-      const triedBeyondStart = rawNextStage < 0;
-      const triedBeyondEnd = rawNextStage > maxStage;
+      const EPS = 0.001;
+      const atStartNow = currentStage <= EPS;
+      const atEndNow = currentStage >= maxStage - EPS;
 
-      if ((atStart && triedBeyondStart) || (atEnd && triedBeyondEnd)) {
-        // Accumulate magnitude in stage units
-        const over = atStart ? rawNextStage : rawNextStage - maxStage; // negative at start, positive at end
-        edgeOverscrollRef.current += over;
-
+      // Only accumulate overscroll if we were already at the boundary BEFORE this delta
+      if (atStartNow && delta < 0) {
+        edgeOverscrollRef.current += delta; // negative accumulation
         const threshold = 0.15; // stage units (~15% of one card)
-        const magnitude = Math.abs(edgeOverscrollRef.current);
-        if (magnitude >= threshold) {
-          // Unlock in the direction of continued scroll
+        if (Math.abs(edgeOverscrollRef.current) >= threshold) {
           document.body.style.overflow = "auto";
           setScrollLocked(false);
           lastUnlockRef.current = Date.now();
           edgeOverscrollRef.current = 0;
         }
-        // Do not change stage while at the edge and before unlocking
-        return;
+        return; // stay pinned at start while accumulating
+      }
+      if (atEndNow && delta > 0) {
+        edgeOverscrollRef.current += delta; // positive accumulation
+        const threshold = 0.15;
+        if (edgeOverscrollRef.current >= threshold) {
+          document.body.style.overflow = "auto";
+          setScrollLocked(false);
+          lastUnlockRef.current = Date.now();
+          edgeOverscrollRef.current = 0;
+        }
+        return; // stay pinned at end while accumulating
       }
 
       // We are within bounds or moving back from edge -> reset overscroll accumulator
@@ -231,23 +236,19 @@ export default function Fields() {
 
           {/* Overlay stack: GCSE -> Teacher -> Upskill */}
           {overlayComponents.map((Comp, idx) => {
-            // Continuous stage ensures symmetric in/out animations per overlay.
-            // stage = overlay.index + overlay.progress (monotonic with scroll delta)
+            // Continuous stage ensures symmetric in/out animations per overlay,
+            // and we compute visuals regardless of lock state so the stack
+            // remains visible at rest when unlocking.
             let translateVh = 100; // default hidden below
             let opacity = 0;
 
-            if (!scrollLocked) {
-              translateVh = 100;
-              opacity = 0;
-            } else {
-              const stage = overlay.index + overlay.progress; // continuous progress across overlays
-              const tRaw = stage - idx; // how far overlay idx has progressed
-              const t = Math.min(1, Math.max(0, tRaw)); // clamp to [0,1]
+            const stage = overlay.index + overlay.progress; // continuous progress across overlays
+            const tRaw = stage - idx; // how far overlay idx has progressed
+            const t = Math.min(1, Math.max(0, tRaw)); // clamp to [0,1]
 
-              translateVh = 100 - t * 100; // 1 => 0vh (fully in), 0 => 100vh (off-screen)
-              // Keep opacity solid while sliding to avoid double-ghosting; hide only when t ~ 0
-              opacity = t > 0.01 ? 1 : 0;
-            }
+            translateVh = 100 - t * 100; // 1 => 0vh (fully in), 0 => 100vh (off-screen)
+            // Keep opacity solid while sliding to avoid double-ghosting; hide only when t ~ 0
+            opacity = t > 0.01 ? 1 : 0;
 
             const z = 20 + idx; // maintain stacking order
 
