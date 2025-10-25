@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import CBCOverview from "./CBCOverview";
 import GCSEOverview from "./GCSEOverview";
+import GCSEOverview from "./GCSEOverview";
 import TeacherOverview from "./TeacherOverview";
 import UpskillOverview from "./UpskillOverview";
 
@@ -187,6 +188,10 @@ export default function Fields() {
   }, [scrollLocked]);
 
   return (
+    <section 
+      ref={scrollContainerRef}
+      className="min-h-screen bg-white flex flex-col items-center justify-start px-6 py-20 text-center"
+    >
     <section 
       ref={scrollContainerRef}
       className="min-h-screen bg-white flex flex-col items-center justify-start px-6 py-20 text-center"
