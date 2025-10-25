@@ -157,10 +157,13 @@ export default function Fields() {
     };
 
     const onWheel = (e: WheelEvent) => {
-      // Prevent page scroll and use delta to animate
+      // Prevent page scroll and use a softened delta to animate
       e.preventDefault();
-      const sensitivity = 0.0008; // Much slower, smoother wheel sensitivity
-      advance(e.deltaY * sensitivity);
+      const sensitivity = 0.0006; // slower wheel sensitivity for smoother control
+      const raw = e.deltaY * sensitivity;
+      // non-linear softening to tame large deltas and trackpads
+      const softened = Math.tanh(raw);
+      advance(softened);
     };
 
     const onTouchStart = (e: TouchEvent) => {
@@ -174,8 +177,10 @@ export default function Fields() {
       if (startY == null) return;
       const currentY = e.touches[0].clientY;
       const dy = startY - currentY; // swipe up -> positive
-      const sensitivity = 0.004; // Slower touch sensitivity
-      advance(dy * sensitivity);
+      const sensitivity = 0.0035; // slightly slower touch sensitivity
+      const raw = dy * sensitivity;
+      const softened = Math.tanh(raw);
+      advance(softened);
       touchStartYRef.current = currentY;
     };
 
@@ -261,7 +266,7 @@ export default function Fields() {
                   zIndex: z,
                   transform: `translateY(${translateVh}vh)`,
                   opacity,
-                  transition: "transform 0.15s ease-in-out, opacity 0.2s ease-in-out",
+                  transition: "transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s linear",
                   willChange: "transform, opacity",
                   pointerEvents: opacity === 0 ? "none" : "auto",
                 }}
