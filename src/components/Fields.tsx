@@ -23,6 +23,8 @@ export default function Fields() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const touchStartYRef = useRef<number | null>(null);
   const lastUnlockRef = useRef<number>(0);
+  // Accumulates attempted scroll beyond edges to decide when to unlock
+  const edgeOverscrollRef = useRef<number>(0);
 
   // Define overlay components in order (top-most last)
   const overlayComponents = useMemo(
@@ -70,7 +72,7 @@ export default function Fields() {
     }
   }, [showThinking]);
 
-  // 1) Detect when CBC is fully in view -> lock page scroll and start overlay phase
+  // 1) Detect when CBC is fully in view -> lock page scroll; do NOT reset stage
   useEffect(() => {
     const onScrollCheckFullView = () => {
       if (scrollLocked) return;
@@ -81,11 +83,10 @@ export default function Fields() {
       const cooldownPassed = Date.now() - lastUnlockRef.current > 250;
       if (fullyInView) {
         if (cooldownPassed) {
-          // Lock body scroll and prepare overlay
+          // Lock body scroll; keep current overlay stage (no reset)
           setScrollLocked(true);
-          setOverlay({ index: 0, progress: 0 });
-          overlayRef.current = { index: 0, progress: 0 };
           document.body.style.overflow = "hidden";
+          edgeOverscrollRef.current = 0;
         }
       }
     };
@@ -95,61 +96,59 @@ export default function Fields() {
     return () => window.removeEventListener("scroll", onScrollCheckFullView);
   }, [scrollLocked]);
 
-  // 2) While locked, capture wheel/touch and drive multi-overlay slide. Unlock when sequence completes.
+  // 2) While locked, capture wheel/touch and drive multi-overlay slide. Unlock only on continued overscroll beyond edges.
   useEffect(() => {
     if (!scrollLocked) return;
 
     const advance = (delta: number) => {
-      setOverlay((prev) => {
-        let index = prev.index;
-        let prog = prev.progress + delta;
-        const lastIndex = overlayComponents.length - 1;
+      const lastIndex = overlayComponents.length - 1;
+      const maxStage = overlayComponents.length; // inclusive end
 
-        // Move forward through overlays
-        while (prog >= 1 - 1e-6) {
-          if (index < lastIndex) {
-            index += 1;
-            prog -= 1; // carry over extra delta into next overlay
-          } else {
-            // Completed final overlay
-            prog = 1;
-            // Unlock after state commits
-            setTimeout(() => {
-              document.body.style.overflow = "auto";
-              setScrollLocked(false);
-              lastUnlockRef.current = Date.now();
-            }, 0);
-            const nextState = { index, progress: prog };
-            overlayRef.current = nextState;
-            return nextState;
-          }
+      const currentStage = overlayRef.current.index + overlayRef.current.progress;
+      const rawNextStage = currentStage + delta;
+      const clampedNextStage = Math.min(maxStage, Math.max(0, rawNextStage));
+
+      // If we are hitting an edge and trying to go further, accumulate overscroll
+      const atStart = clampedNextStage === 0;
+      const atEnd = clampedNextStage === maxStage;
+      const triedBeyondStart = rawNextStage < 0;
+      const triedBeyondEnd = rawNextStage > maxStage;
+
+      if ((atStart && triedBeyondStart) || (atEnd && triedBeyondEnd)) {
+        // Accumulate magnitude in stage units
+        const over = atStart ? rawNextStage : rawNextStage - maxStage; // negative at start, positive at end
+        edgeOverscrollRef.current += over;
+
+        const threshold = 0.15; // stage units (~15% of one card)
+        const magnitude = Math.abs(edgeOverscrollRef.current);
+        if (magnitude >= threshold) {
+          // Unlock in the direction of continued scroll
+          document.body.style.overflow = "auto";
+          setScrollLocked(false);
+          lastUnlockRef.current = Date.now();
+          edgeOverscrollRef.current = 0;
         }
+        // Do not change stage while at the edge and before unlocking
+        return;
+      }
 
-        // Move backward through overlays
-        while (prog <= 0 + 1e-6) {
-          if (index > 0) {
-            index -= 1;
-            prog = 1 + prog; // borrow from previous overlay
-          } else {
-            // At the beginning; unlock if user scrolls back
-            prog = 0;
-            setTimeout(() => {
-              document.body.style.overflow = "auto";
-              setScrollLocked(false);
-              lastUnlockRef.current = Date.now();
-            }, 0);
-            const nextState = { index, progress: prog };
-            overlayRef.current = nextState;
-            return nextState;
-          }
-        }
+      // We are within bounds or moving back from edge -> reset overscroll accumulator
+      edgeOverscrollRef.current = 0;
 
-        // Clamp and commit
-        prog = Math.min(1, Math.max(0, prog));
-        const nextState = { index, progress: prog };
-        overlayRef.current = nextState;
-        return nextState;
-      });
+      // Convert clampedNextStage back to index/progress
+      let nextIndex: number;
+      let nextProgress: number;
+      if (clampedNextStage === maxStage) {
+        nextIndex = lastIndex;
+        nextProgress = 1;
+      } else {
+        nextIndex = Math.floor(clampedNextStage);
+        nextProgress = clampedNextStage - nextIndex;
+      }
+
+      const nextState = { index: nextIndex, progress: nextProgress };
+      overlayRef.current = nextState;
+      setOverlay(nextState);
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -232,26 +231,22 @@ export default function Fields() {
 
           {/* Overlay stack: GCSE -> Teacher -> Upskill */}
           {overlayComponents.map((Comp, idx) => {
-            // Determine transform/opacity for each overlay based on index and progress
+            // Continuous stage ensures symmetric in/out animations per overlay.
+            // stage = overlay.index + overlay.progress (monotonic with scroll delta)
             let translateVh = 100; // default hidden below
             let opacity = 0;
 
             if (!scrollLocked) {
-              // When not locked, keep them off-screen and non-interactive
               translateVh = 100;
               opacity = 0;
-            } else if (idx < overlay.index) {
-              // Already fully slid in
-              translateVh = 0;
-              opacity = 1;
-            } else if (idx === overlay.index) {
-              // Currently animating
-              translateVh = 100 - overlay.progress * 100;
-              opacity = overlay.progress > 0.02 ? 1 : 0; // fade in almost immediately
             } else {
-              // Not yet animating
-              translateVh = 100;
-              opacity = 0;
+              const stage = overlay.index + overlay.progress; // continuous progress across overlays
+              const tRaw = stage - idx; // how far overlay idx has progressed
+              const t = Math.min(1, Math.max(0, tRaw)); // clamp to [0,1]
+
+              translateVh = 100 - t * 100; // 1 => 0vh (fully in), 0 => 100vh (off-screen)
+              // Keep opacity solid while sliding to avoid double-ghosting; hide only when t ~ 0
+              opacity = t > 0.01 ? 1 : 0;
             }
 
             const z = 20 + idx; // maintain stacking order
@@ -265,7 +260,7 @@ export default function Fields() {
                   zIndex: z,
                   transform: `translateY(${translateVh}vh)`,
                   opacity,
-                  transition: "transform 0.15s ease-out, opacity 0.2s ease-out",
+                  transition: "transform 0.15s ease-in-out, opacity 0.2s ease-in-out",
                   willChange: "transform, opacity",
                   pointerEvents: opacity === 0 ? "none" : "auto",
                 }}
