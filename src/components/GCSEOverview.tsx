@@ -14,7 +14,7 @@ const GCSEOverview = () => {
 
   return (
     <div className="relative w-full max-w-[1200px] mx-auto bg-gradient-to-br from-[#0a1410] via-[#0d1912] to-[#080f0c] overflow-visible rounded-xl">
-      <div className="relative min-h-[500px] md:min-h-[450px] p-8 md:p-16">
+      <div className="relative min-h-[420px] md:min-h-[380px] p-8 md:p-14">
         
         {/* Left Content */}
         <div className="relative z-10 md:w-[55%] space-y-6">
@@ -55,12 +55,12 @@ const GCSEOverview = () => {
           </div>
         </div>
 
-        {/* Image */}
-        <div className="absolute bottom-[-3%] right-[-3%] w-[45%] md:w-[42%] lg:w-[40%] h-auto">
+        {/* Image (Standardized Size) */}
+        <div className="absolute bottom-[-3%] right-[-3%] w-[40%] md:w-[38%] lg:w-[36%]">
           <img
             src="/gcseoverview.jpeg"
             alt="GCSE Overview"
-            className="w-full h-auto object-cover shadow-2xl rounded-tl-3xl"
+            className="w-full aspect-[4/3] object-cover shadow-2xl rounded-tl-3xl"
           />
         </div>
 

@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import CBCOverview from "./CBCOverview";
 import GCSEOverview from "./GCSEOverview";
+import TeacherOverview from "./TeacherOverview";
+import UpskillOverview from "./UpskillOverview";
 
 export default function Fields() {
   const [isVisible, setIsVisible] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
   const [showHeadline, setShowHeadline] = useState(false);
   const [dots, setDots] = useState("");
-  const [gcseTransform, setGcseTransform] = useState(100);
   const [scrollLocked, setScrollLocked] = useState(false);
-  const [overlayProgress, setOverlayProgress] = useState(0); // 0 -> CBC only, 1 -> GCSE fully covering
-  const [gcseOpacity, setGcseOpacity] = useState(0); // Control GCSE visibility
+  // Multi-overlay sequencer: index indicates which overlay is sliding currently.
+  // 0 -> GCSE over CBC, 1 -> Teacher over GCSE, 2 -> Upskill over Teacher
+  const [overlay, setOverlay] = useState<{ index: number; progress: number }>({ index: 0, progress: 0 });
+  const overlayRef = useRef<{ index: number; progress: number }>({ index: 0, progress: 0 });
   
   const headlineRef = useRef<HTMLDivElement>(null);
   const cbcRef = useRef<HTMLDivElement>(null);
@@ -20,6 +23,12 @@ export default function Fields() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const touchStartYRef = useRef<number | null>(null);
   const lastUnlockRef = useRef<number>(0);
+
+  // Define overlay components in order (top-most last)
+  const overlayComponents = useMemo(
+    () => [GCSEOverview, TeacherOverview, UpskillOverview],
+    []
+  );
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -74,9 +83,8 @@ export default function Fields() {
         if (cooldownPassed) {
           // Lock body scroll and prepare overlay
           setScrollLocked(true);
-          setOverlayProgress(0);
-          setGcseTransform(100);
-          setGcseOpacity(0); // Start with GCSE invisible
+          setOverlay({ index: 0, progress: 0 });
+          overlayRef.current = { index: 0, progress: 0 };
           document.body.style.overflow = "hidden";
         }
       }
@@ -87,32 +95,60 @@ export default function Fields() {
     return () => window.removeEventListener("scroll", onScrollCheckFullView);
   }, [scrollLocked]);
 
-  // 2) While locked, capture wheel/touch and drive GCSE slide. Unlock when done.
+  // 2) While locked, capture wheel/touch and drive multi-overlay slide. Unlock when sequence completes.
   useEffect(() => {
     if (!scrollLocked) return;
 
     const advance = (delta: number) => {
-      setOverlayProgress((prev) => {
-        const next = Math.min(1, Math.max(0, prev + delta));
-        setGcseTransform(100 - next * 100);
-        
-        // Fade in GCSE as it slides up, fade out when sliding down
-        // Only show GCSE when it's more than 10% into the viewport
-        if (next > 0.1) {
-          setGcseOpacity(1);
-        } else {
-          setGcseOpacity(0);
+      setOverlay((prev) => {
+        let index = prev.index;
+        let prog = prev.progress + delta;
+        const lastIndex = overlayComponents.length - 1;
+
+        // Move forward through overlays
+        while (prog >= 1 - 1e-6) {
+          if (index < lastIndex) {
+            index += 1;
+            prog -= 1; // carry over extra delta into next overlay
+          } else {
+            // Completed final overlay
+            prog = 1;
+            // Unlock after state commits
+            setTimeout(() => {
+              document.body.style.overflow = "auto";
+              setScrollLocked(false);
+              lastUnlockRef.current = Date.now();
+            }, 0);
+            const nextState = { index, progress: prog };
+            overlayRef.current = nextState;
+            return nextState;
+          }
         }
-        
-        if (next >= 1 || next <= 0) {
-          // Completed overlay (either direction): unlock scroll
-          setTimeout(() => {
-            document.body.style.overflow = "auto";
-            setScrollLocked(false);
-            lastUnlockRef.current = Date.now();
-          }, 0);
+
+        // Move backward through overlays
+        while (prog <= 0 + 1e-6) {
+          if (index > 0) {
+            index -= 1;
+            prog = 1 + prog; // borrow from previous overlay
+          } else {
+            // At the beginning; unlock if user scrolls back
+            prog = 0;
+            setTimeout(() => {
+              document.body.style.overflow = "auto";
+              setScrollLocked(false);
+              lastUnlockRef.current = Date.now();
+            }, 0);
+            const nextState = { index, progress: prog };
+            overlayRef.current = nextState;
+            return nextState;
+          }
         }
-        return next;
+
+        // Clamp and commit
+        prog = Math.min(1, Math.max(0, prog));
+        const nextState = { index, progress: prog };
+        overlayRef.current = nextState;
+        return nextState;
       });
     };
 
@@ -139,7 +175,7 @@ export default function Fields() {
       touchStartYRef.current = currentY;
     };
 
-    window.addEventListener("wheel", onWheel, { passive: false });
+  window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchstart", onTouchStart, { passive: false });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
 
@@ -194,20 +230,50 @@ export default function Fields() {
             <CBCOverview />
           </div>
 
-          {/* GCSE Overview - Slides up to cover CBC */}
-          <div 
-            ref={gcseRef}
-            className={`${scrollLocked ? "fixed inset-0" : "absolute top-0 left-0 right-0"} z-20`}
-            style={{ 
-              transform: `translateY(${gcseTransform}vh)`,
-              opacity: gcseOpacity,
-              transition: 'transform 0.15s ease-out, opacity 0.2s ease-out',
-              willChange: 'transform, opacity',
-              pointerEvents: gcseOpacity === 0 ? 'none' : 'auto'
-            }}
-          >
-            <GCSEOverview />
-          </div>
+          {/* Overlay stack: GCSE -> Teacher -> Upskill */}
+          {overlayComponents.map((Comp, idx) => {
+            // Determine transform/opacity for each overlay based on index and progress
+            let translateVh = 100; // default hidden below
+            let opacity = 0;
+
+            if (!scrollLocked) {
+              // When not locked, keep them off-screen and non-interactive
+              translateVh = 100;
+              opacity = 0;
+            } else if (idx < overlay.index) {
+              // Already fully slid in
+              translateVh = 0;
+              opacity = 1;
+            } else if (idx === overlay.index) {
+              // Currently animating
+              translateVh = 100 - overlay.progress * 100;
+              opacity = overlay.progress > 0.02 ? 1 : 0; // fade in almost immediately
+            } else {
+              // Not yet animating
+              translateVh = 100;
+              opacity = 0;
+            }
+
+            const z = 20 + idx; // maintain stacking order
+
+            return (
+              <div
+                key={idx}
+                ref={idx === 0 ? gcseRef : undefined}
+                className={`${scrollLocked ? "fixed inset-0" : "absolute top-0 left-0 right-0"}`}
+                style={{
+                  zIndex: z,
+                  transform: `translateY(${translateVh}vh)`,
+                  opacity,
+                  transition: "transform 0.15s ease-out, opacity 0.2s ease-out",
+                  willChange: "transform, opacity",
+                  pointerEvents: opacity === 0 ? "none" : "auto",
+                }}
+              >
+                <Comp />
+              </div>
+            );
+          })}
 
         </div>
       </div>
