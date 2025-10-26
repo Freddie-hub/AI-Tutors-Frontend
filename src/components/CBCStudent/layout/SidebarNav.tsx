@@ -87,9 +87,9 @@ export default function SidebarNav({ active = 'Dashboard' }: SidebarNavProps) {
       )
     },
     {
-      id: 'Certifications',
-      label: 'Certifications',
-      href: '/dashboard/student/cbc/certifications',
+      id: 'Career Paths',
+      label: 'Career Paths',
+      href: '/dashboard/student/cbc/paths',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
@@ -117,9 +117,9 @@ export default function SidebarNav({ active = 'Dashboard' }: SidebarNavProps) {
       )
     },
     {
-      id: 'Messages',
-      label: 'Messages',
-      href: '/dashboard/student/cbc/messages',
+      id: 'Community',
+      label: 'Community',
+      href: '/dashboard/student/cbc/community',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path

@@ -1,45 +1,24 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
+import { motion, useScroll, useTransform, type MotionValue } from "framer-motion";
 import CBCOverview from "./CBCOverview";
 import GCSEOverview from "./GCSEOverview";
 import TeacherOverview from "./TeacherOverview";
 import UpskillOverview from "./UpskillOverview";
 
 export default function Fields() {
-  const [isVisible, setIsVisible] = useState(false);
+  // Optional intro text
   const [showThinking, setShowThinking] = useState(false);
   const [showHeadline, setShowHeadline] = useState(false);
   const [dots, setDots] = useState("");
-  const [scrollLocked, setScrollLocked] = useState(false);
-  // Multi-overlay sequencer: index indicates which overlay is sliding currently.
-  // 0 -> GCSE over CBC, 1 -> Teacher over GCSE, 2 -> Upskill over Teacher
-  const [overlay, setOverlay] = useState<{ index: number; progress: number }>({ index: 0, progress: 0 });
-  const overlayRef = useRef<{ index: number; progress: number }>({ index: 0, progress: 0 });
-  
   const headlineRef = useRef<HTMLDivElement>(null);
-  const cbcRef = useRef<HTMLDivElement>(null);
-  const gcseRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const touchStartYRef = useRef<number | null>(null);
-  const lastUnlockRef = useRef<number>(0);
-  // Accumulates attempted scroll beyond edges to decide when to unlock
-  const edgeOverscrollRef = useRef<number>(0);
-
-  // Define overlay components in order (top-most last)
-  const overlayComponents = useMemo(
-    () => [GCSEOverview, TeacherOverview, UpskillOverview],
-    []
-  );
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !isVisible) {
-          setIsVisible(true);
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
           setShowThinking(true);
-
-          // Show "thinking..." animation for 2 seconds before headline
           setTimeout(() => {
             setShowThinking(false);
             setShowHeadline(true);
@@ -48,253 +27,102 @@ export default function Fields() {
       },
       { threshold: 0.3 }
     );
-
-    if (headlineRef.current) observer.observe(headlineRef.current);
-
-    return () => {
-      if (headlineRef.current) observer.unobserve(headlineRef.current);
-    };
-  }, [isVisible]);
+    if (headlineRef.current) obs.observe(headlineRef.current);
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
-    if (showThinking) {
-      let count = 0;
-      const interval = setInterval(() => {
-        count++;
-        const cycle = count % 4;
-        if (cycle === 1) setDots(".");
-        else if (cycle === 2) setDots("..");
-        else if (cycle === 3) setDots("...");
-        else setDots("");
-      }, 250);
-
-      return () => clearInterval(interval);
-    }
+    if (!showThinking) return;
+    let i = 0;
+    const id = setInterval(() => {
+      i = (i + 1) % 4;
+      setDots(["", ".", "..", "..."][i]);
+    }, 250);
+    return () => clearInterval(id);
   }, [showThinking]);
 
-  // 1) Detect when CBC is fully in view -> lock page scroll; do NOT reset stage
+  // Fixed-deck stacking with shared scroll progress
+  const cards = [CBCOverview, GCSEOverview, TeacherOverview, UpskillOverview];
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] });
+
+  // Convert 100vh to pixels for framer y translate
+  const [vh, setVh] = useState(0);
   useEffect(() => {
-    const onScrollCheckFullView = () => {
-      if (scrollLocked) return;
-      if (!cbcRef.current) return;
-
-      const rect = cbcRef.current.getBoundingClientRect();
-      const fullyInView = rect.top >= 0 && rect.bottom <= window.innerHeight;
-      const cooldownPassed = Date.now() - lastUnlockRef.current > 250;
-      if (fullyInView) {
-        if (cooldownPassed) {
-          // Lock body scroll; keep current overlay stage (no reset)
-          setScrollLocked(true);
-          document.body.style.overflow = "hidden";
-          edgeOverscrollRef.current = 0;
-        }
-      }
-    };
-
-    window.addEventListener("scroll", onScrollCheckFullView, { passive: true });
-    onScrollCheckFullView();
-    return () => window.removeEventListener("scroll", onScrollCheckFullView);
-  }, [scrollLocked]);
-
-  // 2) While locked, capture wheel/touch and drive multi-overlay slide. Unlock only on continued overscroll beyond edges.
-  useEffect(() => {
-    if (!scrollLocked) return;
-
-    const advance = (delta: number) => {
-  const lastIndex = overlayComponents.length - 1;
-  const maxStage = overlayComponents.length; // inclusive end (e.g., 3 for 3 overlays)
-
-      const currentStage = overlayRef.current.index + overlayRef.current.progress;
-      const rawNextStage = currentStage + delta;
-      const clampedNextStage = Math.min(maxStage, Math.max(0, rawNextStage));
-
-      // If we are hitting an edge and trying to go further, accumulate overscroll
-      const EPS = 0.001;
-      const atStartNow = currentStage <= EPS;
-      const atEndNow = currentStage >= maxStage - EPS;
-
-      // Only accumulate overscroll if we were already at the boundary BEFORE this delta
-      if (atStartNow && delta < 0) {
-        edgeOverscrollRef.current += delta; // negative accumulation
-        const threshold = 0.15; // stage units (~15% of one card)
-        if (Math.abs(edgeOverscrollRef.current) >= threshold) {
-          document.body.style.overflow = "auto";
-          setScrollLocked(false);
-          lastUnlockRef.current = Date.now();
-          edgeOverscrollRef.current = 0;
-        }
-        return; // stay pinned at start while accumulating
-      }
-      if (atEndNow && delta > 0) {
-        edgeOverscrollRef.current += delta; // positive accumulation
-        const threshold = 0.15;
-        if (edgeOverscrollRef.current >= threshold) {
-          document.body.style.overflow = "auto";
-          setScrollLocked(false);
-          lastUnlockRef.current = Date.now();
-          edgeOverscrollRef.current = 0;
-        }
-        return; // stay pinned at end while accumulating
-      }
-
-      // We are within bounds or moving back from edge -> reset overscroll accumulator
-      edgeOverscrollRef.current = 0;
-
-      // Convert clampedNextStage back to index/progress
-      let nextIndex: number;
-      let nextProgress: number;
-      if (clampedNextStage === maxStage) {
-        nextIndex = lastIndex;
-        nextProgress = 1;
-      } else {
-        nextIndex = Math.floor(clampedNextStage);
-        nextProgress = clampedNextStage - nextIndex;
-      }
-
-      const nextState = { index: nextIndex, progress: nextProgress };
-      overlayRef.current = nextState;
-      setOverlay(nextState);
-    };
-
-    const onWheel = (e: WheelEvent) => {
-      // Prevent page scroll and use a softened delta to animate
-      e.preventDefault();
-      const sensitivity = 0.0006; // slower wheel sensitivity for smoother control
-      const raw = e.deltaY * sensitivity;
-      // non-linear softening to tame large deltas and trackpads
-      const softened = Math.tanh(raw);
-      advance(softened);
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches && e.touches.length > 0) {
-        touchStartYRef.current = e.touches[0].clientY;
-      }
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      const startY = touchStartYRef.current;
-      if (startY == null) return;
-      const currentY = e.touches[0].clientY;
-      const dy = startY - currentY; // swipe up -> positive
-      const sensitivity = 0.0035; // slightly slower touch sensitivity
-      const raw = dy * sensitivity;
-      const softened = Math.tanh(raw);
-      advance(softened);
-      touchStartYRef.current = currentY;
-    };
-
-  window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("touchstart", onTouchStart, { passive: false });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-
-    return () => {
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-    };
-  }, [scrollLocked]);
+    const set = () => setVh(window.innerHeight);
+    set();
+    window.addEventListener("resize", set);
+    return () => window.removeEventListener("resize", set);
+  }, []);
 
   return (
-    <section 
-      ref={scrollContainerRef}
-      className="min-h-screen bg-white flex flex-col items-center justify-start px-6 py-20 text-center"
-    >
-      {/* Headline at the top */}
-      <div
-        ref={headlineRef}
-        className="max-w-4xl mb-6 min-h-[80px] flex items-center justify-center"
+    <>
+      <section className="min-h-[50vh] bg-white flex flex-col items-center justify-center px-6 py-20 text-center">
+        <div ref={headlineRef} className="max-w-4xl mb-6 min-h-[80px] flex items-center justify-center">
+          {showThinking && !showHeadline && (
+            <p className="text-3xl md:text-4xl text-gray-700 italic animate-fade-in">thinking{dots}</p>
+          )}
+          {showHeadline && (
+            <div className="animate-fade-in">
+              <h1 className="text-3xl md:text-5xl font-semibold text-gray-900 whitespace-nowrap">
+                Learn at the speed of <span className="italic text-gray-600">thought</span>
+              </h1>
+            </div>
+          )}
+        </div>
+        <p className="text-gray-500 mt-2 text-sm md:text-base max-w-2xl">
+          AI-personalized courses, gamified lessons, and real-time feedback to elevate your skills.
+        </p>
+      </section>
+
+      <main
+        ref={containerRef}
+        className="relative bg-white"
+        style={{ height: `${cards.length * 100 + 20}vh` }}
       >
-        {showThinking && !showHeadline && (
-          <p className="text-3xl md:text-4xl text-gray-700 italic animate-fade-in">
-            thinking{dots}
-          </p>
-        )}
+        {cards.map((Comp, i) => {
+          const start = i / cards.length;
+          const end = (i + 1) / cards.length;
+          const targetScale = 1 - (cards.length - i) * 0.05;
+          const scale = useTransform(scrollYProgress, [start, 1], [1, targetScale]);
+          // First card should appear almost immediately below the Fields heading
+          const enterFrom = i === 0 ? Math.round(vh * 0.10) : vh;
+          const y = useTransform(scrollYProgress, [start, end], [enterFrom, 0]);
+          const opacity = useTransform(scrollYProgress, [start - 0.08, start], [0, 1]);
+          // Hide entire deck outside its section so it doesn't cover Hero/Footer
+          const deckVisibility = useTransform(
+            scrollYProgress,
+            [-0.001, 0, 1, 1.001],
+            [0, 1, 1, 0]
+          );
 
-        {showHeadline && (
-          <div className="animate-fade-in">
-            <h1 className="text-3xl md:text-5xl font-semibold text-gray-900 whitespace-nowrap">
-              Learn at the speed of{" "}
-              <span className="italic text-gray-600">thought</span>
-            </h1>
-          </div>
-        )}
-      </div>
+          // Combine opacities with explicit typing to satisfy TS
+          const combinedOpacity = useTransform<number, number>(
+            [opacity, deckVisibility] as unknown as MotionValue<number>[],
+            (latest: number[]) => (latest[0] ?? 0) * (latest[1] ?? 0)
+          );
 
-      <p className="text-gray-500 mt-2 text-sm md:text-base max-w-2xl mb-12">
-        AI-personalized courses, gamified lessons, and real-time feedback to
-        elevate your skills.
-      </p>
-
-      {/* Curriculum Overview Sequence with Stacking Effect */}
-      <div className="w-full relative">
-        {/* Spacer to allow scroll room for the stacking effect */}
-        <div style={{ height: "150vh" }}>
-          
-          {/* CBC Overview - Pins visually by stopping body scroll when fully visible */}
-          <div 
-            ref={cbcRef}
-            className="sticky top-0 z-10"
-          >
-            <CBCOverview />
-          </div>
-
-          {/* Overlay stack: GCSE -> Teacher -> Upskill */}
-          {overlayComponents.map((Comp, idx) => {
-            // Continuous stage ensures symmetric in/out animations per overlay,
-            // and we compute visuals regardless of lock state so the stack
-            // remains visible at rest when unlocking.
-            let translateVh = 100; // default hidden below
-            let opacity = 0;
-
-            const stage = overlay.index + overlay.progress; // continuous progress across overlays
-            const tRaw = stage - idx; // how far overlay idx has progressed
-            const t = Math.min(1, Math.max(0, tRaw)); // clamp to [0,1]
-
-            translateVh = 100 - t * 100; // 1 => 0vh (fully in), 0 => 100vh (off-screen)
-            // Keep opacity solid while sliding to avoid double-ghosting; hide only when t ~ 0
-            opacity = t > 0.01 ? 1 : 0;
-
-            const z = 20 + idx; // maintain stacking order
-
-            return (
-              <div
-                key={idx}
-                ref={idx === 0 ? gcseRef : undefined}
-                className={`${scrollLocked ? "fixed inset-0" : "absolute top-0 left-0 right-0"}`}
-                style={{
-                  zIndex: z,
-                  transform: `translateY(${translateVh}vh)`,
-                  opacity,
-                  transition: "transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s linear",
-                  willChange: "transform, opacity",
-                  pointerEvents: opacity === 0 ? "none" : "auto",
-                }}
+          return (
+            <motion.div
+              key={i}
+              className="fixed inset-0 flex items-start justify-center pointer-events-none"
+              style={{ zIndex: 20 + i, y, opacity: combinedOpacity }}
+            >
+              <motion.div
+                style={{ scale, transformOrigin: "top center", top: `calc(-6vh + ${i * 28}px)` }}
+                className="relative w-full max-w-[1200px] mx-auto px-6 pointer-events-auto"
               >
                 <Comp />
-              </div>
-            );
-          })}
-
-        </div>
-      </div>
+              </motion.div>
+            </motion.div>
+          );
+        })}
+      </main>
 
       <style jsx>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.8s ease-out forwards;
-        }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.8s ease-out forwards; }
       `}</style>
-    </section>
+    </>
   );
 }
