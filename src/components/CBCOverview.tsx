@@ -13,7 +13,7 @@ const CBCOverview = () => {
   ];
 
   return (
-    <div className="relative w-full max-w-[1200px] mx-auto bg-gradient-to-br from-[#0a1410] via-[#0d1912] to-[#080f0c] overflow-visible rounded-xl">
+    <div className="relative w-full max-w-[1200px] mx-auto bg-linear-to-br from-[#0a1410] via-[#0d1912] to-[#080f0c] overflow-visible rounded-xl">
       <div className="relative min-h-[420px] md:min-h-[380px] p-8 md:p-14">
         
         {/* Left Content */}
@@ -32,7 +32,7 @@ const CBCOverview = () => {
           <div className="space-y-4">
             {features.map((feature, index) => (
               <div key={index} className="flex items-start gap-3 group">
-                <div className="flex-shrink-0 mt-1">
+                <div className="shrink-0 mt-1">
                   <svg
                     className="w-6 h-6 text-[#00E18A] group-hover:scale-110 transition-transform"
                     fill="none"
@@ -60,7 +60,7 @@ const CBCOverview = () => {
           <img
             src="/cbcoverview1.jpg"
             alt="CBC Overview"
-            className="w-full aspect-[4/3] object-cover shadow-2xl rounded-tl-3xl"
+            className="w-full aspect-4/3 object-cover shadow-2xl rounded-tl-3xl"
           />
         </div>
 

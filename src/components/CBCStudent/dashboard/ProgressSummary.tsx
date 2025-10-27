@@ -60,7 +60,7 @@ export default function ProgressSummary() {
               <p className="text-[11px] text-[#9aa6b2] mt-0.5 leading-tight">Latest topic you were learning</p>
             </div>
             <button
-              className="px-2.5 py-1.5 rounded-lg border border-[#7c3aed] text-[#7c3aed] font-medium text-[11px] shrink-0 hover:bg-gradient-to-r hover:from-[#6b21a8] hover:to-[#7c3aed] hover:text-white hover:border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400/40"
+              className="px-2.5 py-1.5 rounded-lg border border-[#7c3aed] text-[#7c3aed] font-medium text-[11px] shrink-0 hover:bg-linear-to-r hover:from-[#6b21a8] hover:to-[#7c3aed] hover:text-white hover:border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400/40"
               aria-label="Continue learning"
             >
               Continue →
@@ -76,9 +76,9 @@ export default function ProgressSummary() {
                   <p className="text-[11px] text-[#9aa6b2]">Course Progress</p>
                   <p className="text-[11px] font-semibold text-white/90">78%</p>
                 </div>
-                <div className="relative w-full h-[6px] bg-[#0a0f14] rounded-full overflow-hidden">
+                <div className="relative w-full h-1.5 bg-[#0a0f14] rounded-full overflow-hidden">
                   <div
-                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#6b21a8] via-[#7c3aed] to-[#a855f7] rounded-full"
+                    className="absolute top-0 left-0 h-full bg-linear-to-r from-[#6b21a8] via-[#7c3aed] to-[#a855f7] rounded-full"
                     style={{ width: `78%` }}
                   >
                     <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-white/90 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.6)]"></div>

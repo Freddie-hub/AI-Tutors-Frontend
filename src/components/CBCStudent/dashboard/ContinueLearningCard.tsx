@@ -62,7 +62,7 @@ export default function ContinueLearningCard() {
         {/* Progress Bar */}
         <div className="relative w-full h-2 bg-[#0b0f12] rounded-full overflow-hidden">
           <div
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#6b21a8] to-[#7c3aed] rounded-full transition-all duration-500"
+            className="absolute top-0 left-0 h-full bg-linear-to-r from-[#6b21a8] to-[#7c3aed] rounded-full transition-all duration-500"
             style={{ width: `${progress}%` }}
           >
             <div className="absolute top-0 right-0 w-2 h-2 bg-white rounded-full shadow-lg"></div>
@@ -87,7 +87,7 @@ export default function ContinueLearningCard() {
       {/* CTA Button */}
       <button
         onClick={handleContinue}
-        className="w-full py-3 rounded-lg border border-[#7c3aed] text-[#7c3aed] font-medium text-sm hover:bg-gradient-to-r hover:from-[#6b21a8] hover:to-[#7c3aed] hover:text-white hover:border-transparent transition-all focus:outline-none focus:ring-2 focus:ring-purple-400"
+        className="w-full py-3 rounded-lg border border-[#7c3aed] text-[#7c3aed] font-medium text-sm hover:bg-linear-to-r hover:from-[#6b21a8] hover:to-[#7c3aed] hover:text-white hover:border-transparent transition-all focus:outline-none focus:ring-2 focus:ring-purple-400"
         aria-label="Continue learning"
       >
         Continue Learning →

@@ -149,7 +149,7 @@ export default function SidebarNav({ active = 'Dashboard' }: SidebarNavProps) {
       </div>
 
       {/* Sidebar */}
-      <aside className="flex flex-col flex-1 w-[90%] bg-gradient-to-b from-[#0b0f12] to-[#0c1116] rounded-t-2xl border-t border-l border-r border-white/10 shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)] overflow-hidden">
+  <aside className="flex flex-col flex-1 w-[90%] bg-linear-to-b from-[#0b0f12] to-[#0c1116] rounded-t-2xl border-t border-l border-r border-white/10 shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)] overflow-hidden">
         {/* Scrollable Nav */}
         <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto no-scrollbar">
           {navItems.map((item) => {
@@ -182,7 +182,7 @@ export default function SidebarNav({ active = 'Dashboard' }: SidebarNavProps) {
 
         {/* Promo Card */}
         <div className="p-4">
-          <div className="p-4 rounded-xl bg-gradient-to-br from-[#0a0f14] to-[#0b1113] border border-white/8 ring-1 ring-white/5">
+          <div className="p-4 rounded-xl bg-linear-to-br from-[#0a0f14] to-[#0b1113] border border-white/8 ring-1 ring-white/5">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="text-sm font-medium text-white/95">Free Trial</p>

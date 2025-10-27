@@ -264,9 +264,9 @@ export function withRoleProtection<P extends object>(
 
     if (isLoading) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
           <div className="relative">
-            <div className="animate-spin rounded-full h-12 w-12 border-2 border-transparent bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-border" />
+            <div className="animate-spin rounded-full h-12 w-12 border-2 border-transparent bg-linear-to-r from-blue-500 to-cyan-500 bg-clip-border" />
             <div className="absolute inset-0 rounded-full border-2 border-slate-700" />
           </div>
         </div>
@@ -275,7 +275,7 @@ export function withRoleProtection<P extends object>(
 
     if (!isAuthorized) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
           <div className="text-center">
             <div className="text-6xl mb-4">🚫</div>
             <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
