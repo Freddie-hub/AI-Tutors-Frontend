@@ -56,7 +56,7 @@ export interface UserProfile {
   displayName?: string | null;
   photoURL?: string | null;
   role?: UserRole;
-  onboarded?: boolean;
+  courseType: 'cbc' | 'gcse' | 'custom';
   institutionId?: string;
   isIndependent?: boolean;
   preferences?: {

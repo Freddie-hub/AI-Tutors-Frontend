@@ -16,22 +16,27 @@ interface GCSECourseFormProps {
   onCancel: () => void;
 }
 
+type CurriculumStrand = {
+  id: string;
+  name: string;
+  description?: string;
+  subtopics?: string[];
+  objectives?: string[];
+};
+
+type CurriculumSubject = {
+  name: string;
+  strands: CurriculumStrand[];
+};
+
 type CurriculumGrade = {
   programme: string;
-  grade_number: number;
-  subjects: {
-    name: string;
-    strands: {
-      id: string;
-      name: string;
-      description: string;
-      subtopics: string[];
-    }[];
-  }[];
+  year_number: number; // GCSE data uses year_number
+  subjects: CurriculumSubject[];
 };
 
 export function GCSECourseForm({ onBack, onSuccess, onCancel }: GCSECourseFormProps) {
-  const curriculum = useMemo(() => curriculumData as CurriculumGrade[], []);
+  const curriculum = useMemo(() => curriculumData as unknown as CurriculumGrade[], []);
   
   const [selectedGradeIndex, setSelectedGradeIndex] = useState<number>(6); // Default selection
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
@@ -69,18 +74,18 @@ export function GCSECourseForm({ onBack, onSuccess, onCancel }: GCSECourseFormPr
           strands: s.strands.map(strand => ({
             id: strand.id,
             name: strand.name,
-            description: strand.description,
-            subtopics: strand.subtopics,
+            description: strand.description ?? '',
+            subtopics: (strand.subtopics ?? strand.objectives ?? []),
           })),
         }));
 
       const curriculumContext = {
-        grade: currentGrade.programme.replace('United Kingdom General Certificate of Secondary Education (GCSE) - ', ''),
+        grade: currentGrade.programme,
         subjects: selectedSubjectsData,
       };
 
       await generateGCSECourse({
-        grade: currentGrade.programme.replace('United Kingdom General Certificate of Secondary Education (GCSE) - ', ''),
+        grade: currentGrade.programme,
         subjects: selectedSubjects,
         curriculumContext,
       });
@@ -158,14 +163,14 @@ export function GCSECourseForm({ onBack, onSuccess, onCancel }: GCSECourseFormPr
           strands: s.strands.map(strand => ({
             id: strand.id,
             name: strand.name,
-            description: strand.description,
-            subtopics: strand.subtopics,
+            description: strand.description ?? '',
+            subtopics: (strand.subtopics ?? strand.objectives ?? []),
           })),
         }));
 
       await saveCourse({
         name: generatedTOC.courseName,
-        grade: currentGrade.programme.replace('United Kingdom General Certificate of Secondary Education (GCSE) - ', ''),
+        grade: currentGrade.programme,
         subjects: subjectsData,
         description: generatedTOC.description,
         courseType: 'gcse',

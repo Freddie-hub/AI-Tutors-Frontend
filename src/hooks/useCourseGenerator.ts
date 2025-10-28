@@ -24,7 +24,7 @@ interface CourseTOCResponse {
   courseName: string;
   description: string;
   estimatedDuration: string;
-  difficulty?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
   chapters: CourseChapter[];
 }
 
