@@ -74,6 +74,47 @@ export function useCourseGenerator() {
     }
   };
 
+  const generateGCSECourse = async (params: GenerateCBCParams): Promise<CourseTOCResponse> => {
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await fetch('/api/courses/generate/gcse', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate course');
+      }
+
+      const data = await response.json();
+      const toc: CourseTOCResponse = {
+        courseName: data.courseName,
+        description: data.description,
+        estimatedDuration: data.estimatedDuration,
+        chapters: data.chapters,
+      };
+
+      setGeneratedTOC(toc);
+      return toc;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to generate course';
+      setError(message);
+      throw err;
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const generateCustomCourse = async (params: GenerateCustomParams): Promise<CourseTOCResponse> => {
     setIsGenerating(true);
     setError(null);
@@ -121,7 +162,7 @@ export function useCourseGenerator() {
     grade: string;
     subjects: CourseSubject[];
     description: string;
-    courseType: 'cbc' | 'custom';
+    courseType: 'cbc' | 'gcse' | 'custom';
     chapters: CourseChapter[];
     estimatedDuration?: string;
     difficulty?: string;
@@ -165,6 +206,7 @@ export function useCourseGenerator() {
     error,
     generatedTOC,
     generateCBCCourse,
+    generateGCSECourse,
     generateCustomCourse,
     saveCourse,
     reset,

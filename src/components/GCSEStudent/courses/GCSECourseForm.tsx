@@ -37,7 +37,7 @@ export function GCSECourseForm({ onBack, onSuccess, onCancel }: GCSECourseFormPr
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [showTOC, setShowTOC] = useState(false);
   
-  const { isGenerating, error, generatedTOC, generateCBCCourse, saveCourse, reset } = useCourseGenerator();
+  const { isGenerating, error, generatedTOC, generateGCSECourse, saveCourse, reset } = useCourseGenerator();
 
   const currentGrade = useMemo(() => curriculum[selectedGradeIndex], [curriculum, selectedGradeIndex]);
   const availableSubjects = useMemo(() => currentGrade?.subjects.map(s => s.name) || [], [currentGrade]);
@@ -79,7 +79,7 @@ export function GCSECourseForm({ onBack, onSuccess, onCancel }: GCSECourseFormPr
         subjects: selectedSubjectsData,
       };
 
-      await generateCBCCourse({
+      await generateGCSECourse({
         grade: currentGrade.programme.replace('United Kingdom General Certificate of Secondary Education (GCSE) - ', ''),
         subjects: selectedSubjects,
         curriculumContext,

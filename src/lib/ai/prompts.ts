@@ -286,6 +286,8 @@ export function sectionWriterPrompt(params: {
     startSubtopicIndex?: number;
     endSubtopicIndex?: number;
   };
+
+
   previousContext?: string;
   targetTokens: number;
   lengthHintsBySubtopic?: Array<{ chapterId: string; subtopicIndex: number; targetTokens: number; targetWords?: number }>;

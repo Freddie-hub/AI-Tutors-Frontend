@@ -112,7 +112,7 @@ export interface Course {
   grade: string;
   subjects: CourseSubject[]; // Multiple subjects per course
   description: string;
-  courseType: 'cbc' | 'custom';
+  courseType: 'cbc' | 'gcse' | 'custom';
   
   // Course structure (AI-generated TOC)
   chapters: CourseChapter[];
