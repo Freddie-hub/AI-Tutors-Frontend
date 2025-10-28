@@ -37,13 +37,19 @@ export function usePlannedLesson(courseId: string, chapterId: string) {
         }
 
         const courseData = await courseResponse.json();
-        const foundChapter = courseData.course.chapters.find((ch: CourseChapter) => ch.id === chapterId);
+        // API returns the course object directly, not wrapped in { course }
+        const courseChapters: CourseChapter[] | undefined = courseData?.chapters;
+        const foundChapter = Array.isArray(courseChapters)
+          ? courseChapters.find((ch: CourseChapter) => ch.id === chapterId)
+          : undefined;
         
-        if (!foundChapter) {
-          throw new Error('Chapter not found');
+        if (foundChapter) {
+          setChapter(foundChapter);
+        } else {
+          // Proceed without chapter details; planned lesson may still be available
+          console.warn('[usePlannedLesson] Chapter not found in course data; proceeding to fetch lessons');
+          setChapter(null);
         }
-
-        setChapter(foundChapter);
 
         // Fetch planned lessons for this chapter
         const lessonsResponse = await fetch(

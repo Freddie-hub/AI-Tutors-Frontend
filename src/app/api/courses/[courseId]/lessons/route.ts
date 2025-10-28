@@ -41,25 +41,41 @@ export async function GET(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
 
-    // Query lessons
-    let query = courseRef.collection('lessons') as FirebaseFirestore.Query;
+    // Build lessons query
+    let baseQuery = courseRef.collection('lessons') as FirebaseFirestore.Query;
 
     if (status) {
-      query = query.where('status', '==', status);
+      baseQuery = baseQuery.where('status', '==', status);
     }
     if (chapterId) {
-      query = query.where('chapterId', '==', chapterId);
+      baseQuery = baseQuery.where('chapterId', '==', chapterId);
     }
 
-    // Order by global sequence
-    query = query.orderBy('globalOrder', 'asc');
-
-    const lessonsSnapshot = await query.get();
-    const lessons: PlannedLesson[] = [];
-
-    lessonsSnapshot.forEach(doc => {
-      lessons.push(doc.data() as PlannedLesson);
-    });
+    // Try to order by globalOrder; if Firestore requires a composite index, fall back to client-side sort
+    let lessons: PlannedLesson[] = [];
+    try {
+      const orderedSnapshot = await baseQuery.orderBy('globalOrder', 'asc').get();
+      orderedSnapshot.forEach(doc => {
+        lessons.push(doc.data() as PlannedLesson);
+      });
+    } catch (e: unknown) {
+      const err = e as { code?: number | string; message?: string };
+      const msg = typeof err?.message === 'string' ? err.message : '';
+      const needsIndex = msg.includes('FAILED_PRECONDITION') && msg.includes('requires an index');
+      if (!needsIndex) {
+        throw e;
+      }
+      // Fallback: fetch without orderBy and sort in memory to avoid composite index requirement
+      const snapshot = await baseQuery.get();
+      snapshot.forEach(doc => {
+        lessons.push(doc.data() as PlannedLesson);
+      });
+      lessons.sort((a: any, b: any) => {
+        const ag = typeof a?.globalOrder === 'number' ? a.globalOrder : Number.MAX_SAFE_INTEGER;
+        const bg = typeof b?.globalOrder === 'number' ? b.globalOrder : Number.MAX_SAFE_INTEGER;
+        return ag - bg;
+      });
+    }
 
     // Also fetch schedule if available
     const scheduleDoc = await courseRef.collection('metadata').doc('schedule').get();

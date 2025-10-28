@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 minutes for planning
+export const maxDuration = 300; 
 
 import { verifyIdToken } from '@/lib/serverAuth';
 import { generateCourseLessonPlan } from '@/server/courseGenerator';

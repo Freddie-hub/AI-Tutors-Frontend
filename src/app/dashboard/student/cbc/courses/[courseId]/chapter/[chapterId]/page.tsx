@@ -42,7 +42,7 @@ export default function ChapterLessonPage({ params }: ChapterLessonPageProps) {
     );
   }
 
-  if (error || !chapter) {
+  if (error && !plannedLesson) {
     return (
       <DashboardLayout active="Courses">
         <div className="max-w-5xl mx-auto">
@@ -99,12 +99,12 @@ export default function ChapterLessonPage({ params }: ChapterLessonPageProps) {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-white/95 mb-1">{chapter.title}</h1>
-              <p className="text-[#9aa6b2] text-sm">{chapter.subject}</p>
+              <h1 className="text-2xl font-bold text-white/95 mb-1">{chapter?.title ?? plannedLesson.title}</h1>
+              <p className="text-[#9aa6b2] text-sm">{chapter?.subject ?? plannedLesson.subject}</p>
             </div>
           </div>
           
-          {!chapter.completed && (
+          {chapter && !chapter.completed && (
             <Button
               onClick={handleComplete}
               className="bg-linear-to-r from-[#7c3aed] to-[#a78bfa] hover:from-[#6d28d9] hover:to-[#9333ea] text-white"
@@ -209,7 +209,7 @@ export default function ChapterLessonPage({ params }: ChapterLessonPageProps) {
 
         {/* Bottom Action */}
         <div className="flex justify-center pt-6 border-t border-white/10">
-          {!chapter.completed ? (
+          {chapter && !chapter.completed ? (
             <Button
               onClick={handleComplete}
               size="lg"
