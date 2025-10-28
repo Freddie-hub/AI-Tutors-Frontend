@@ -166,3 +166,12 @@ export interface SavedLessonDTO {
   content?: string;
   createdAt: string | Date;
 }
+
+// Shared AI output types
+export interface GeneratedCourseTOC {
+  courseName: string;
+  description: string;
+  estimatedDuration: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  chapters: CourseChapter[];
+}

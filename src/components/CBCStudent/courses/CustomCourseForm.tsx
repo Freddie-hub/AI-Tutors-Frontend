@@ -46,6 +46,61 @@ export function CustomCourseForm({ onBack, onSuccess, onCancel }: CustomCourseFo
     }
   };
 
+  // Show generating state
+  if (isGenerating) {
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle className="text-white/95">Generating Course</DialogTitle>
+          <p className="text-[#9aa6b2] text-sm mt-2">
+            AI agent is curating your course...
+          </p>
+        </DialogHeader>
+
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-white/10" />
+            <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-[#7c3aed] border-t-transparent animate-spin" />
+          </div>
+          
+          <div className="text-center space-y-2">
+            <p className="text-white/90 font-medium">Agent is curating course for you...</p>
+            <p className="text-sm text-white/60">
+              Creating personalized course structure for {topic}
+            </p>
+          </div>
+
+          <div className="w-full max-w-md mt-6">
+            <div className="bg-[#0E0E10] rounded-lg p-4 border border-white/10">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-white/70">
+                  <div className="w-2 h-2 rounded-full bg-[#7c3aed] animate-pulse" />
+                  <span>Analyzing your learning goals...</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-white/50">
+                  <div className="w-2 h-2 rounded-full bg-white/20" />
+                  <span>Designing course structure...</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-white/50">
+                  <div className="w-2 h-2 rounded-full bg-white/20" />
+                  <span>Optimizing for {level} level...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={onCancel}
+            variant="secondary"
+            className="bg-white/5 hover:bg-white/10 text-white border-white/10 mt-4"
+          >
+            Cancel
+          </Button>
+        </div>
+      </>
+    );
+  }
+
   const handleSaveCourse = async (editedChapters: CourseChapter[]) => {
     if (!generatedTOC) return;
 
@@ -201,7 +256,7 @@ export function CustomCourseForm({ onBack, onSuccess, onCancel }: CustomCourseFo
           <Button
             onClick={handleGenerate}
             disabled={isGenerating || !topic.trim()}
-            className="bg-gradient-to-r from-[#7c3aed] to-[#a78bfa] hover:from-[#6d28d9] hover:to-[#9333ea] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-linear-to-r from-[#7c3aed] to-[#a78bfa] hover:from-[#6d28d9] hover:to-[#9333ea] text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>

@@ -1,4 +1,5 @@
-import { openai } from '@/server/openai';
+import { getOpenAI } from '@/lib/ai/openai';
+import { systemCoursePlanner, cbcCoursePlannerPrompt, customCoursePlannerPrompt } from '@/lib/ai/prompts';
 import type { CourseChapter, CourseSubject } from '@/lib/types';
 
 interface CBCCourseParams {
@@ -35,52 +36,20 @@ export async function generateCBCCourseTOC(params: CBCCourseParams) {
     })
     .join('\n\n');
 
-  const prompt = `You are an expert curriculum designer for Kenya's Competency-Based Curriculum (CBC).
-
-Create a comprehensive course structure for:
-- Grade: ${grade}
-- Subjects: ${subjects.join(', ')}
-
-Official CBC Curriculum Context:
-${curriculumDetails}
-
-Your task:
-1. Analyze all strands and subtopics provided across all subjects
-2. Create 12-20 chapters that cover the curriculum comprehensively
-3. Group related subtopics into logical chapters
-4. Ensure progressive difficulty within and across subjects
-5. Maintain CBC alignment in terminology
-6. Balance coverage across all subjects
-7. Each chapter should focus on ONE subject
-
-Important: Create a diverse, balanced course that covers all subjects proportionally.
-
-Output ONLY a valid JSON object (no markdown, no code blocks) with this exact structure:
-{
-  "courseName": "Complete name for the course",
-  "description": "Comprehensive description of what students will learn",
-  "estimatedDuration": "Estimated weeks (e.g., '16 weeks')",
-  "chapters": [
-    {
-      "id": "unique-chapter-id",
-      "title": "Chapter title",
-      "subject": "Subject name from the curriculum",
-      "strandId": "strand ID from curriculum (if applicable)",
-      "strandName": "strand name from curriculum (if applicable)",
-      "topics": ["specific topic 1", "specific topic 2"],
-      "description": "What this chapter covers",
-      "order": 1
-    }
-  ]
-}`;
+  const prompt = cbcCoursePlannerPrompt({
+    grade,
+    subjects,
+    curriculumDetails,
+  });
 
   try {
+    const openai = getOpenAI();
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: 'You are a curriculum design expert. Return only valid JSON responses without any markdown formatting or code blocks.',
+          content: systemCoursePlanner,
         },
         {
           role: 'user',
@@ -125,46 +94,21 @@ Output ONLY a valid JSON object (no markdown, no code blocks) with this exact st
 export async function generateCustomCourseTOC(params: CustomCourseParams) {
   const { topic, level, goals, duration } = params;
 
-  const prompt = `You are an expert course designer and educator.
-
-Create a comprehensive custom course structure for:
-- Topic: ${topic}
-- Level: ${level}
-- Learning Goals: ${goals || 'General mastery of the topic'}
-- Duration: ${duration || 'Self-paced'}
-
-Your task:
-1. Create 8-15 chapters that comprehensively cover the topic
-2. Ensure progressive difficulty appropriate for ${level} level
-3. Include practical applications and examples
-4. Structure chapters for optimal learning flow
-5. Each chapter should build on previous knowledge
-
-Output ONLY a valid JSON object (no markdown, no code blocks) with this exact structure:
-{
-  "courseName": "Complete course name",
-  "description": "What students will learn and achieve",
-  "estimatedDuration": "Estimated weeks",
-  "difficulty": "${level}",
-  "chapters": [
-    {
-      "id": "unique-chapter-id",
-      "title": "Chapter title",
-      "subject": "Main subject area",
-      "topics": ["specific topic 1", "specific topic 2"],
-      "description": "What this chapter covers",
-      "order": 1
-    }
-  ]
-}`;
+  const prompt = customCoursePlannerPrompt({
+    topic,
+    level,
+    goals,
+    duration,
+  });
 
   try {
+    const openai = getOpenAI();
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: 'You are a course design expert. Return only valid JSON responses without any markdown formatting or code blocks.',
+          content: systemCoursePlanner,
         },
         {
           role: 'user',
