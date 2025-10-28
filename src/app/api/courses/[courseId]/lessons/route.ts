@@ -48,6 +48,7 @@ export async function GET(
       baseQuery = baseQuery.where('status', '==', status);
     }
     if (chapterId) {
+      console.log(`[GetLessons] Filtering by chapterId: "${chapterId}"`);
       baseQuery = baseQuery.where('chapterId', '==', chapterId);
     }
 
@@ -75,6 +76,11 @@ export async function GET(
         const bg = typeof b?.globalOrder === 'number' ? b.globalOrder : Number.MAX_SAFE_INTEGER;
         return ag - bg;
       });
+    }
+
+    console.log(`[GetLessons] Found ${lessons.length} lessons for chapterId="${chapterId || 'all'}"`);
+    if (lessons.length > 0 && chapterId) {
+      console.log(`[GetLessons] Sample lesson chapterId: "${lessons[0].chapterId}"`);
     }
 
     // Also fetch schedule if available

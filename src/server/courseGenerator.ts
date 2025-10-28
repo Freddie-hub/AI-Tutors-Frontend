@@ -1,6 +1,6 @@
 import { getOpenAI } from '@/lib/ai/openai';
 import { systemCoursePlanner, cbcCoursePlannerPrompt, gcseCoursePlannerPrompt, customCoursePlannerPrompt, chapterLessonPlannerPrompt, courseLessonSchedulerPrompt } from '@/lib/ai/prompts';
-import type { CourseChapter, CourseSubject, ChapterLessonPlan, CourseLessonSchedule } from '@/lib/types';
+import type { CourseChapter, CourseSubject, ChapterLessonPlan, CourseLessonSchedule, LessonScheduleEntry, WeekSummary } from '@/lib/types';
 
 interface CBCCourseParams {
   grade: string;
@@ -390,7 +390,11 @@ export async function generateCourseLessonPlan(params: CourseLessonPlanParams) {
           throw new Error(`Invalid JSON for chapter ${chapter.id}: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
         }
         
-        console.log(`[LessonPlanner] Chapter "${chapter.title}": ${parsed.lessons.length} lessons, ${parsed.totalEstimatedMinutes} min`);
+  // Ensure the chapterId aligns with the source course chapter to keep data join consistent
+  parsed.chapterId = chapter.id;
+  if (!parsed.chapterTitle) parsed.chapterTitle = chapter.title;
+
+  console.log(`[LessonPlanner] Chapter "${chapter.title}" (id="${chapter.id}"): ${parsed.lessons.length} lessons, ${parsed.totalEstimatedMinutes} min`);
         
         return parsed;
       });
@@ -399,110 +403,181 @@ export async function generateCourseLessonPlan(params: CourseLessonPlanParams) {
       chapterLessonPlans.push(...batchResults);
     }
 
-    // Step 2: Create course-wide schedule
-    console.log(`[LessonPlanner] Creating schedule for ${chapterLessonPlans.reduce((sum, ch) => sum + ch.lessons.length, 0)} total lessons...`);
-    
-    const schedulePrompt = courseLessonSchedulerPrompt({
-      courseName,
-      grade,
-      totalWeeks: estimatedDurationWeeks,
-      lessonsPerWeek,
-      chapterLessonPlans: chapterLessonPlans.map(ch => ({
-        chapterId: ch.chapterId,
-        chapterTitle: ch.chapterTitle,
-        lessons: ch.lessons.map(l => ({
-          id: l.id,
-          title: l.title,
-          targetDurationMin: l.targetDurationMin,
-          order: l.order,
-        })),
-      })),
-      startDate,
-    });
+    // Step 2: Create course-wide schedule (chunked to avoid timeouts and token limits)
+    const totalLessons = chapterLessonPlans.reduce((sum, ch) => sum + ch.lessons.length, 0);
+    console.log(`[LessonPlanner] Creating schedule for ${totalLessons} total lessons...`);
 
-    const scheduleResponse = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemCoursePlanner },
-        { role: 'user', content: schedulePrompt },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.5,
-      max_tokens: 8000,
-    });
-
-    const scheduleContent = scheduleResponse.choices[0]?.message?.content?.trim();
-    if (!scheduleContent) {
-      throw new Error('Empty response from scheduler');
-    }
-
-    // Robust JSON extraction
-    let cleanedScheduleContent = scheduleContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const firstBrace = cleanedScheduleContent.indexOf('{');
-    const lastBrace = cleanedScheduleContent.lastIndexOf('}');
-    
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      cleanedScheduleContent = cleanedScheduleContent.substring(firstBrace, lastBrace + 1);
-    }
-    
-    let schedule;
-    try {
-      schedule = JSON.parse(cleanedScheduleContent) as Omit<CourseLessonSchedule, 'courseId' | 'createdAt'>;
-    } catch (parseError) {
-      console.error('[LessonPlanner] Failed to parse schedule');
-      console.error('[LessonPlanner] Raw content:', scheduleContent);
-      console.error('[LessonPlanner] Parse error:', parseError);
-
-      // Attempt repair for common JSON issues
-      try {
-        console.log('[LessonPlanner] Attempting schedule JSON repair...');
-        let repaired = scheduleContent
-          .replace(/```json\n?/g, '')
-          .replace(/```\n?/g, '')
-          .trim();
-
-        const fb = repaired.indexOf('{');
-        const lb = repaired.lastIndexOf('}');
-        if (fb !== -1 && lb !== -1 && lb > fb) {
-          repaired = repaired.substring(fb, lb + 1);
-        }
-
-        // Heuristics: remove trailing commas, add missing commas between objects/arrays, fix string comma lines
-        repaired = repaired
-          .replace(/,(\s*[}\]])/g, '$1')
-          .replace(/([}\]])(\s*)([{[])/g, '$1,$2$3')
-          .replace(/"\s*\n\s*"/g, '",\n"');
-
-        schedule = JSON.parse(repaired) as Omit<CourseLessonSchedule, 'courseId' | 'createdAt'>;
-        console.log('[LessonPlanner] Schedule JSON repair successful');
-      } catch (repairError) {
-        console.error('[LessonPlanner] Schedule repair failed:', repairError);
-        // Provide context around the reported position if available
-        if (parseError instanceof SyntaxError) {
-          const match = String(parseError.message).match(/position (\d+)/);
-          if (match) {
-            const pos = parseInt(match[1]);
-            const start = Math.max(0, pos - 250);
-            const end = Math.min(scheduleContent.length, pos + 250);
-            console.error('[LessonPlanner] Context around error:', scheduleContent.substring(start, end));
-          }
-        }
-        throw new Error(`Invalid JSON from scheduler: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+    // Build chunks so that each prompt includes ~<= 40 lessons
+    const limitPerChunk = 40;
+    const scheduleChunks: ChapterLessonPlan[][] = [];
+    let currentChunk: ChapterLessonPlan[] = [];
+    let currentCount = 0;
+    for (const ch of chapterLessonPlans) {
+      const chCount = ch.lessons.length;
+      if (currentCount + chCount > limitPerChunk && currentChunk.length > 0) {
+        scheduleChunks.push(currentChunk);
+        currentChunk = [];
+        currentCount = 0;
       }
+      currentChunk.push(ch);
+      currentCount += chCount;
+    }
+    if (currentChunk.length > 0) scheduleChunks.push(currentChunk);
+
+    type PartialSchedule = Omit<CourseLessonSchedule, 'courseId' | 'createdAt'>;
+    const partialSchedules: PartialSchedule[] = [];
+
+    for (let i = 0; i < scheduleChunks.length; i++) {
+      const chunk = scheduleChunks[i];
+      const chunkLessons = chunk.reduce((n, c) => n + c.lessons.length, 0);
+      console.log(`[LessonPlanner] Scheduling chunk ${i + 1}/${scheduleChunks.length} with ${chunkLessons} lessons...`);
+
+      const schedulePrompt = courseLessonSchedulerPrompt({
+        courseName,
+        grade,
+        totalWeeks: estimatedDurationWeeks,
+        lessonsPerWeek,
+        chapterLessonPlans: chunk.map(ch => ({
+          chapterId: ch.chapterId,
+          chapterTitle: ch.chapterTitle,
+          lessons: ch.lessons.map(l => ({
+            id: l.id,
+            title: l.title,
+            targetDurationMin: l.targetDurationMin,
+            order: l.order,
+          })),
+        })),
+        startDate,
+      });
+
+      const scheduleResponse = await openai.chat.completions.create(
+        {
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: systemCoursePlanner },
+            { role: 'user', content: schedulePrompt },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.5,
+          max_tokens: 6000,
+        },
+        // Pass a larger timeout via request options (SDK supports this pattern)
+        { timeout: 240000 }
+      );
+
+      const scheduleContent = scheduleResponse.choices[0]?.message?.content?.trim();
+      if (!scheduleContent) {
+        throw new Error('Empty response from scheduler for chunk ' + (i + 1));
+      }
+
+      // Robust JSON extraction and repair (as per original implementation)
+      let cleanedScheduleContent = scheduleContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const fb = cleanedScheduleContent.indexOf('{');
+      const lb = cleanedScheduleContent.lastIndexOf('}');
+      if (fb !== -1 && lb !== -1 && lb > fb) {
+        cleanedScheduleContent = cleanedScheduleContent.substring(fb, lb + 1);
+      }
+
+      let parsedChunk: PartialSchedule;
+      try {
+        parsedChunk = JSON.parse(cleanedScheduleContent) as PartialSchedule;
+      } catch (parseError) {
+        console.error('[LessonPlanner] Failed to parse schedule chunk', i + 1);
+        console.error('[LessonPlanner] Raw content:', scheduleContent);
+        console.error('[LessonPlanner] Parse error:', parseError);
+        // Attempt repair for common JSON issues
+        try {
+          console.log('[LessonPlanner] Attempting schedule JSON repair for chunk', i + 1, '...');
+          let repaired = scheduleContent
+            .replace(/```json\n?/g, '')
+            .replace(/```\n?/g, '')
+            .trim();
+          const rfb = repaired.indexOf('{');
+          const rlb = repaired.lastIndexOf('}');
+          if (rfb !== -1 && rlb !== -1 && rlb > rfb) {
+            repaired = repaired.substring(rfb, rlb + 1);
+          }
+          repaired = repaired
+            .replace(/,(\s*[}\]])/g, '$1')
+            .replace(/([}\]])(\s*)([{[])/g, '$1,$2$3')
+            .replace(/"\s*\n\s*"/g, '",\n"');
+          parsedChunk = JSON.parse(repaired) as PartialSchedule;
+          console.log('[LessonPlanner] Schedule JSON repair successful for chunk', i + 1);
+        } catch (repairError) {
+          console.error('[LessonPlanner] Schedule repair failed for chunk', i + 1, repairError);
+          if (parseError instanceof SyntaxError) {
+            const match = String(parseError.message).match(/position (\d+)/);
+            if (match) {
+              const pos = parseInt(match[1]);
+              const start = Math.max(0, pos - 250);
+              const end = Math.min(scheduleContent.length, pos + 250);
+              console.error('[LessonPlanner] Context around error:', scheduleContent.substring(start, end));
+            }
+          }
+          throw new Error(`Invalid JSON from scheduler (chunk ${i + 1}): ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        }
+      }
+
+      console.log(`[LessonPlanner] Schedule chunk ${i + 1}/${scheduleChunks.length} created: ${parsedChunk.actualLessonsScheduled} lessons`);
+      partialSchedules.push(parsedChunk);
     }
 
-    console.log(`[LessonPlanner] Schedule created: ${schedule.actualLessonsScheduled} lessons over ${schedule.totalWeeks} weeks`);
-    if (schedule.overflow > 0) {
-      console.warn(`[LessonPlanner] Warning: ${schedule.overflow} lessons don't fit in the current schedule`);
+    // Step 3: Merge partial schedules into one coherent schedule
+    let mergedScheduleEntries: LessonScheduleEntry[] = [];
+    let mergedWeekSummary: WeekSummary[] = [];
+    let recommendations: string[] = [];
+    let overflowTotal = 0;
+    let weekOffset = 0; // how many weeks already allocated
+    let globalSeq = 0;
+
+    for (const ps of partialSchedules) {
+      const localMaxWeek = ps.weekSummary && ps.weekSummary.length > 0
+        ? Math.max(...ps.weekSummary.map(w => w.week))
+        : (ps.schedule && ps.schedule.length > 0 ? Math.max(...ps.schedule.map(e => e.week)) : 0);
+
+      // Shift schedule entries
+      const shiftedEntries = (ps.schedule || []).map((e) => ({
+        ...e,
+        week: e.week + weekOffset,
+        sequenceNumber: ++globalSeq,
+      }));
+      mergedScheduleEntries = mergedScheduleEntries.concat(shiftedEntries);
+
+      // Shift week summaries
+      const shiftedSummaries = (ps.weekSummary || []).map((w) => ({
+        ...w,
+        week: w.week + weekOffset,
+      }));
+      mergedWeekSummary = mergedWeekSummary.concat(shiftedSummaries);
+
+      overflowTotal += ps.overflow || 0;
+      if (ps.recommendations && ps.recommendations.length) {
+        recommendations.push(...ps.recommendations);
+      }
+
+      weekOffset += localMaxWeek; // advance offset by the weeks consumed by this chunk
     }
+
+    // Deduplicate recommendations
+    recommendations = Array.from(new Set(recommendations));
+
+    const finalSchedule: CourseLessonSchedule = {
+      courseId,
+      totalWeeks: Math.max(weekOffset, estimatedDurationWeeks),
+      lessonsPerWeek,
+      actualLessonsScheduled: mergedScheduleEntries.length,
+      overflow: overflowTotal,
+      schedule: mergedScheduleEntries,
+      weekSummary: mergedWeekSummary,
+      recommendations,
+      createdAt: new Date().toISOString(),
+    };
+
+    console.log(`[LessonPlanner] Final schedule complete: ${finalSchedule.actualLessonsScheduled} lessons over ~${finalSchedule.totalWeeks} weeks`);
 
     return {
       chapterLessonPlans,
-      schedule: {
-        ...schedule,
-        courseId,
-        createdAt: new Date().toISOString(),
-      } as CourseLessonSchedule,
+      schedule: finalSchedule,
     };
   } catch (error) {
     console.error('[LessonPlanner] Error generating lesson plan:', error);
