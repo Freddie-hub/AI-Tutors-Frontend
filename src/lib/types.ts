@@ -77,3 +77,92 @@ export interface Institution {
   adminEmails?: string[];
   isActive?: boolean;
 }
+
+// Course types
+export interface CourseStrand {
+  id: string;
+  name: string;
+  description: string;
+  subtopics: string[];
+}
+
+export interface CourseSubject {
+  subject: string;
+  strands: CourseStrand[];
+}
+
+export interface CourseChapter {
+  id: string;
+  order: number;
+  title: string;
+  subject: string;
+  strandId?: string;
+  strandName?: string;
+  topics: string[];
+  description?: string;
+  // Progress metadata injected by API layer
+  completed?: boolean;
+  lessonId?: string | null;
+}
+
+export interface Course {
+  id: string;
+  userId: string;
+  name: string;
+  grade: string;
+  subjects: CourseSubject[]; // Multiple subjects per course
+  description: string;
+  courseType: 'cbc' | 'custom';
+  
+  // Course structure (AI-generated TOC)
+  chapters: CourseChapter[];
+  
+  // Progress tracking
+  totalChapters: number;
+  completedChapters: number;
+  progress: number; // 0-100
+  
+  // Metadata
+  thumbnail?: string;
+  estimatedDuration?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  lastAccessedAt?: string | Date;
+}
+
+export interface CourseLessonLink {
+  id: string;
+  courseId: string;
+  userId: string;
+  chapterId: string;
+  chapterOrder: number;
+  chapterTitle: string;
+  
+  // Lesson content reference
+  lessonId: string | null;
+  
+  // Completion tracking
+  status: 'not_started' | 'in_progress' | 'completed';
+  completed: boolean;
+  startedAt: string | Date | null;
+  completedAt: string | Date | null;
+  
+  // Context
+  grade: string;
+  subject: string;
+  topic: string;
+  strandId?: string;
+  strandName?: string;
+}
+
+export interface SavedLessonDTO {
+  id: string;
+  userId: string;
+  grade: string;
+  subject: string;
+  topic: string;
+  specification?: string;
+  content?: string;
+  createdAt: string | Date;
+}
