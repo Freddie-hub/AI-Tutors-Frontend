@@ -27,11 +27,11 @@ export function EmptyCoursesState({ onCreateCourse }: EmptyCoursesStateProps) {
           Create Course
         </Button>
         <Button 
-          onClick={() => router.push('/dashboard/student/cbc/classroom')}
+          onClick={() => router.push('/dashboard/student/cbc/catalog')}
           className="bg-white/5 hover:bg-white/10 text-white border-white/10"
         >
           <Compass className="mr-2 h-4 w-4" />
-          Explore Classroom
+          Explore Courses
         </Button>
       </div>
     </div>
