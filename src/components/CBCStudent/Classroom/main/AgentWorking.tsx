@@ -21,7 +21,7 @@ export default function AgentWorking({ agent, note }: Props) {
   const detail = note ?? 'Crafting your lesson, this may take a few seconds.';
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center h-full min-h-[300px] rounded-xl border border-white/10 bg-gradient-to-br from-[#0E0E10] to-[#141417]">
+    <div className="flex flex-1 flex-col items-center justify-center h-full min-h-[300px] rounded-xl border border-white/10 bg-linear-to-br from-[#0E0E10] to-[#141417]">
       <div className="flex items-center gap-3 text-white/80">
         <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
