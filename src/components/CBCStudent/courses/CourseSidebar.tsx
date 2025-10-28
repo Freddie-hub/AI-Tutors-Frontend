@@ -1,4 +1,3 @@
-// src/components/CBCStudent/courses/CourseSidebar.tsx
 "use client";
 
 import { useState } from "react";

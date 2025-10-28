@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/Button";
+import Button from "@/components/ui/Button";
 import { PlusCircle } from "lucide-react";
 import { CourseCard } from "@/components/CBCStudent/courses/CourseCard";
 import { EmptyCoursesState } from "@/components/CBCStudent/courses/EmptyCoursesState";

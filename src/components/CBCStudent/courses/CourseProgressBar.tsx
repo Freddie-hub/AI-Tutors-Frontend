@@ -1,4 +1,3 @@
-// src/components/CBCStudent/courses/CourseProgressBar.tsx
 "use client";
 
 import { Progress } from "@/components/ui/progress";

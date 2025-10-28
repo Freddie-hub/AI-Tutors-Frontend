@@ -1,7 +1,6 @@
-// src/components/CBCStudent/courses/CourseOverview.tsx
 "use client";
 
-import { Button } from "@/components/ui/button";
+import Button from "@/components/ui/Button";
 import { CourseProgressBar } from "@/components/CBCStudent/courses/CourseProgressBar";
 
 interface CourseOverviewProps {

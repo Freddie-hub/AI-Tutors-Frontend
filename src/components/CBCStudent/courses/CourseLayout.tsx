@@ -1,4 +1,3 @@
-// src/components/CBCStudent/courses/CourseLayout.tsx
 "use client";
 
 import { ReactNode } from "react";
