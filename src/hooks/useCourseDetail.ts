@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { auth } from '@/lib/firebase';
 import type { Course } from '@/lib/types';
 
 export function useCourseDetail(courseId: string) {
@@ -12,10 +13,19 @@ export function useCourseDetail(courseId: string) {
         setIsLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/courses/${courseId}`);
-        
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) throw new Error('Not authenticated');
+
+        const response = await fetch(`/api/courses/${encodeURIComponent(courseId)}` , {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: 'no-store',
+        });
+
         if (!response.ok) {
-          throw new Error('Failed to fetch course');
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData?.message || 'Failed to fetch course');
         }
 
         const data = await response.json();
@@ -28,10 +38,11 @@ export function useCourseDetail(courseId: string) {
       }
     };
 
-    if (courseId) {
+    // Wait for both a valid courseId and an authenticated user
+    if (courseId && auth.currentUser) {
       fetchCourse();
     }
-  }, [courseId]);
+  }, [courseId, auth.currentUser]);
 
   return { course, isLoading, error };
 }
