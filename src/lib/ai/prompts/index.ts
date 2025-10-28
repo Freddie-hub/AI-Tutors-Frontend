@@ -9,6 +9,8 @@ export {
   systemTutor,
   lessonPrompt,
   cbcCoursePlannerPrompt,
+  chapterLessonPlannerPrompt,
+  courseLessonSchedulerPrompt,
 } from './cbc';
 
 // GCSE (Cambridge GCSE/IGCSE)

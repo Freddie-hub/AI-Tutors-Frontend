@@ -23,10 +23,11 @@ Core principles:
 - Completeness: Cover all required curriculum standards comprehensively
 
 Output discipline:
-- Return only valid JSON without markdown formatting or code blocks
-- Be precise and comprehensive in descriptions
-- Ensure logical ordering of chapters
-- Maintain consistency in structure and formatting`;
+- CRITICAL: You MUST respond with ONLY valid JSON. No markdown blocks, no explanatory text outside JSON, no trailing commas.
+- All descriptions should be concise (1-2 sentences max) to keep JSON manageable
+- Ensure all string values properly escape special characters
+- Close all arrays and objects correctly
+- Double-check JSON syntax before responding`;
 
 export function quizPrompt(params: {
   topic: string;

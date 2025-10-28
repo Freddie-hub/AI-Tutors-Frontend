@@ -13,14 +13,16 @@ interface CourseTOCReviewProps {
   onBack: () => void;
   onSave: (editedChapters: CourseChapter[]) => Promise<void>;
   onCancel: () => void;
+  onLessonPlanningStarted?: (courseId: string) => void;
 }
 
-export function CourseTOCReview({ toc, onBack, onSave, onCancel }: CourseTOCReviewProps) {
+export function CourseTOCReview({ toc, onBack, onSave, onCancel, onLessonPlanningStarted }: CourseTOCReviewProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [chapters, setChapters] = useState<CourseChapter[]>(toc.chapters);
   const [editedTitle, setEditedTitle] = useState("");
   const [editedTopics, setEditedTopics] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [savingStage, setSavingStage] = useState<'saving' | 'planning' | null>(null);
 
   const startEdit = (chapter: CourseChapter) => {
     setEditingId(chapter.id);
@@ -50,11 +52,16 @@ export function CourseTOCReview({ toc, onBack, onSave, onCancel }: CourseTOCRevi
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSavingStage('saving');
     try {
       await onSave(chapters);
+      // After successful save, the parent component will receive courseId
+      // and can trigger lesson planning
+      setSavingStage('planning');
     } catch (err) {
       console.error('Failed to save course:', err);
       setIsSaving(false);
+      setSavingStage(null);
     }
   };
 
@@ -195,12 +202,13 @@ export function CourseTOCReview({ toc, onBack, onSave, onCancel }: CourseTOCRevi
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving Course...
+                {savingStage === 'saving' && 'Saving Course...'}
+                {savingStage === 'planning' && 'Planning Lessons...'}
               </>
             ) : (
               <>
                 <Check className="mr-2 h-4 w-4" />
-                Save Course
+                Save & Plan Lessons
               </>
             )}
           </Button>

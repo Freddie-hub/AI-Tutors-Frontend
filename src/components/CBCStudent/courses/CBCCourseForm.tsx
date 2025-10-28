@@ -6,6 +6,7 @@ import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, CheckCircle } from "lucide-react";
 import { useCourseGenerator } from "@/hooks/useCourseGenerator";
+import { useLessonPlanner } from "@/hooks/useLessonPlanner";
 import curriculumData from '@/components/CBCStudent/cbc_curriculum_simple.json';
 import type { CourseSubject, CourseChapter } from "@/lib/types";
 import { CourseTOCReview } from "./CourseTOCReview";
@@ -36,8 +37,10 @@ export function CBCCourseForm({ onBack, onSuccess, onCancel }: CBCCourseFormProp
   const [selectedGradeIndex, setSelectedGradeIndex] = useState<number>(6); // Default to Grade 7
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [showTOC, setShowTOC] = useState(false);
+  const [savedCourseId, setSavedCourseId] = useState<string | null>(null);
   
   const { isGenerating, error, generatedTOC, generateCBCCourse, saveCourse, reset } = useCourseGenerator();
+  const { planLessons, isPlanning } = useLessonPlanner();
 
   const currentGrade = useMemo(() => curriculum[selectedGradeIndex], [curriculum, selectedGradeIndex]);
   const availableSubjects = useMemo(() => currentGrade?.subjects.map(s => s.name) || [], [currentGrade]);
@@ -90,6 +93,62 @@ export function CBCCourseForm({ onBack, onSuccess, onCancel }: CBCCourseFormProp
       console.error('Failed to generate course:', err);
     }
   };
+
+  // Show generating state
+  // Show lesson planning state
+  if (isPlanning) {
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle className="text-white/95">Planning Lessons</DialogTitle>
+          <p className="text-[#9aa6b2] text-sm mt-2">
+            Agent 2 is breaking chapters into detailed lessons and scheduling them…
+          </p>
+        </DialogHeader>
+
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-white/10" />
+            <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-[#7c3aed] border-t-transparent animate-spin" />
+          </div>
+
+          <div className="text-center space-y-2">
+            <p className="text-white/90 font-medium">Planning detailed lessons…</p>
+            <p className="text-sm text-white/60">
+              Creating lesson breakdowns per chapter and building a weekly schedule
+            </p>
+          </div>
+
+          <div className="w-full max-w-md mt-6">
+            <div className="bg-[#0E0E10] rounded-lg p-4 border border-white/10">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-white/70">
+                  <div className="w-2 h-2 rounded-full bg-[#7c3aed] animate-pulse" />
+                  <span>Generating per-chapter lesson plans…</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-white/50">
+                  <div className="w-2 h-2 rounded-full bg-white/20" />
+                  <span>Estimating durations and depth…</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-white/50">
+                  <div className="w-2 h-2 rounded-full bg-white/20" />
+                  <span>Scheduling lessons across weeks…</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={onCancel}
+            variant="secondary"
+            className="bg-white/5 hover:bg-white/10 text-white border-white/10 mt-4"
+          >
+            Cancel
+          </Button>
+        </div>
+      </>
+    );
+  }
 
   // Show generating state
   if (isGenerating) {
@@ -163,7 +222,7 @@ export function CBCCourseForm({ onBack, onSuccess, onCancel }: CBCCourseFormProp
           })),
         }));
 
-      await saveCourse({
+      const result = await saveCourse({
         name: generatedTOC.courseName,
         grade: currentGrade.programme.replace('Kenya Competency-Based Curriculum (CBC) - ', ''),
         subjects: subjectsData,
@@ -173,9 +232,26 @@ export function CBCCourseForm({ onBack, onSuccess, onCancel }: CBCCourseFormProp
         estimatedDuration: generatedTOC.estimatedDuration,
       });
 
+      setSavedCourseId(result.courseId);
+
+      // Close TOC modal before starting planning so the UI updates immediately
+      setShowTOC(false);
+
+      // Automatically trigger lesson planning
+      console.log('[CBCCourseForm] Starting lesson planning for course:', result.courseId);
+      await planLessons({
+        courseId: result.courseId,
+        lessonsPerWeek: 4,
+      });
+
+      console.log('[CBCCourseForm] Lesson planning completed');
       onSuccess();
     } catch (err) {
-      console.error('Failed to save course:', err);
+      console.error('Failed to save course or plan lessons:', err);
+      // Still call onSuccess even if lesson planning fails - course was saved
+      if (savedCourseId) {
+        onSuccess();
+      }
     }
   };
 

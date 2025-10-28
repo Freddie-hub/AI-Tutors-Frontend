@@ -88,50 +88,221 @@ ${curriculumDetails}
 
 Your Task - Create a Complete Course Structure:
 
-1. ANALYZE THE CURRICULUM:
-   - Review all strands and subtopics provided for each subject
-   - Identify natural groupings and learning progressions
-   - Note prerequisite relationships between topics
-   - Consider CBC competencies (communication, collaboration, critical thinking, creativity)
+IMPORTANT: Keep descriptions concise (1-2 sentences max). Focus on structure, not lengthy explanations.
 
-2. DESIGN CHAPTER STRUCTURE:
-   - Create 12-20 comprehensive chapters covering ALL curriculum content
-   - Each chapter focuses on ONE subject only (don't mix subjects in a chapter)
-   - Group related strands/subtopics into cohesive chapters
-   - Ensure progressive difficulty throughout the course
-   - Balance coverage across all subjects proportionally
-   - Order chapters to build foundational knowledge before advanced topics
+1. ANALYZE: Review all strands/subtopics, identify natural groupings and progressions
+2. DESIGN: Create appropriate number of chapters to cover ALL content (no arbitrary limit)
+   - One subject per chapter (don't mix)
+   - Progressive difficulty
+   - Balanced coverage across subjects
+   - State-of-the-art depth for mastery
+3. CHAPTER PRINCIPLES:
+   - Clear titles indicating what students learn
+   - Map topics to curriculum strands/subtopics
+   - Brief descriptions (1-2 sentences)
+   - Include CBC strand IDs and names
+4. QUALITY: Cover all subtopics, balance scope, coherent journey
 
-3. CHAPTER DESIGN PRINCIPLES:
-   - Clear, descriptive titles that indicate what students will learn
-   - Specific topics that map directly to curriculum strands/subtopics
-   - Rich descriptions explaining chapter purpose and learning outcomes
-   - Proper sequencing with order numbers
-   - Include CBC strand IDs and names for curriculum alignment
+CRITICAL: Output ONLY valid JSON. No markdown blocks, no explanatory text, no trailing commas. Use this EXACT structure:
 
-4. ENSURE QUALITY:
-   - All curriculum subtopics must be covered (don't skip any)
-   - Chapters should be balanced in scope (not too broad or too narrow)
-   - Create a coherent learning journey from chapter 1 to final chapter
-   - Consider student age and cognitive development for ${grade}
-   - Include real-world Kenyan contexts where applicable
-
-Output ONLY valid JSON (no markdown, no code blocks) with this exact structure:
 {
-  "courseName": "Descriptive name covering all subjects (e.g., 'Grade 7 Complete CBC Curriculum: Mathematics, Science & Social Studies')",
-  "description": "Comprehensive 2-3 sentence description of the course, learning journey, and outcomes",
-  "estimatedDuration": "Realistic duration in weeks (e.g., '16 weeks', '24 weeks')",
+  "courseName": "Grade X Complete CBC: Subject1, Subject2",
+  "description": "Brief 1-2 sentence course overview",
+  "estimatedDuration": "16 weeks",
   "chapters": [
     {
       "id": "unique-kebab-case-id",
-      "title": "Clear chapter title indicating topic",
-      "subject": "Exact subject name from curriculum",
-      "strandId": "CBC strand ID (e.g., 'sci-g7-s1')",
-      "strandName": "CBC strand name (e.g., 'Living Things')",
-      "topics": ["Specific topic 1", "Specific topic 2", "Specific topic 3"],
-      "description": "What this chapter covers and why it matters (2-3 sentences)",
+      "title": "Chapter title",
+      "subject": "Subject name",
+      "strandId": "strand-id",
+      "strandName": "Strand name",
+      "topics": ["Topic 1", "Topic 2", "Topic 3"],
+      "description": "Brief 1-2 sentence chapter description",
       "order": 1
+    }
+  ]
+}
+
+Ensure all JSON is valid: matching braces, no trailing commas, proper string escaping.`;
+}
+
+/**
+ * CBC Chapter-to-Lessons Planner (Agent 2)
+ * Breaks down a single chapter into detailed lesson plans with durations and depth
+ */
+export function chapterLessonPlannerPrompt(params: {
+  grade: string;
+  chapterTitle: string;
+  subject: string;
+  strandId?: string;
+  strandName?: string;
+  topics: string[];
+  chapterDescription?: string;
+  curriculumDetails: string;
+  targetChapterWeeks?: number;
+}) {
+  const { grade, chapterTitle, subject, strandId, strandName, topics, chapterDescription, curriculumDetails, targetChapterWeeks } = params;
+  
+  return `You are an expert CBC curriculum designer creating a detailed lesson plan for a single chapter.
+
+Chapter Context:
+- Grade: ${grade}
+- Subject: ${subject}
+- Chapter: ${chapterTitle}
+- Strand: ${strandName || 'N/A'} (${strandId || 'N/A'})
+- Topics: ${topics.join(', ')}
+- Description: ${chapterDescription || 'N/A'}
+- Target Weeks: ${targetChapterWeeks || 'flexible'}
+
+Relevant Curriculum Standards:
+${curriculumDetails}
+
+Your Task - Create State-of-the-Art Lesson Plans:
+
+1. ANALYZE CHAPTER SCOPE:
+   - Break down the chapter into logical, digestible lessons
+   - Each lesson should cover 1-3 closely related subtopics
+   - Ensure full conceptual mastery (students should become experts)
+   - Consider prerequisite knowledge and build progressively
+
+2. LESSON STRUCTURE:
+   - Create 3-10 lessons depending on chapter complexity (no arbitrary limit)
+   - Each lesson should be completable in 35-60 minutes of focused learning
+   - Include clear learning objectives aligned to CBC competencies
+   - Specify depth level: 'intro', 'intermediate', or 'proficient'
+   - List prerequisite concepts (from earlier lessons/chapters)
+
+3. TIMING AND PACING:
+   - Estimate realistic duration in minutes for each lesson
+   - Include suggested homework/practice time (if applicable)
+   - Balance cognitive load across lessons
+
+4. ASSESSMENT INTEGRATION:
+   - Identify natural quiz/checkpoint anchors
+   - Suggest formative assessment opportunities
+   - Include reflection or application activities
+
+5. QUALITY BAR (STATE-OF-THE-ART):
+   - Students should achieve textbook-level understanding
+   - Cover both theory and practical application
+   - Include Kenyan real-world contexts
+   - Prepare for both conceptual understanding and problem-solving
+   - Foster CBC competencies (critical thinking, creativity, communication, collaboration)
+
+Output ONLY valid JSON (no markdown, no code blocks):
+{
+  "chapterId": "same-as-input-chapter",
+  "chapterTitle": "${chapterTitle}",
+  "totalEstimatedMinutes": <sum of all lesson durations>,
+  "recommendedWeeks": <realistic weeks for this chapter, e.g., 1-3>,
+  "lessons": [
+    {
+      "id": "unique-kebab-case-id",
+      "order": 1,
+      "title": "Clear, engaging lesson title",
+      "subject": "${subject}",
+      "strandId": "${strandId || ''}",
+      "strandName": "${strandName || ''}",
+      "topics": ["Specific subtopic 1", "Specific subtopic 2"],
+      "learningObjectives": [
+        "Students will be able to...",
+        "Students will understand..."
+      ],
+      "depth": "intro|intermediate|proficient",
+      "targetDurationMin": <realistic minutes, e.g., 45>,
+      "suggestedHomeworkMin": <optional, e.g., 20>,
+      "prerequisites": ["Concept from earlier lesson", "Another prerequisite"],
+      "assessmentAnchors": ["quiz-after-concept-1", "reflection-end"],
+      "keyActivities": ["Activity 1", "Activity 2", "Practice problems"],
+      "realWorldContext": "Brief description of Kenyan real-world application"
     }
   ]
 }`;
 }
+
+/**
+ * CBC Course-wide Lesson Scheduler (Agent 2)
+ * Takes all chapter lesson plans and creates a realistic weekly schedule
+ */
+export function courseLessonSchedulerPrompt(params: {
+  courseName: string;
+  grade: string;
+  totalWeeks: number;
+  lessonsPerWeek: number;
+  chapterLessonPlans: Array<{
+    chapterId: string;
+    chapterTitle: string;
+    lessons: Array<{ id: string; title: string; targetDurationMin: number; order: number }>;
+  }>;
+  startDate?: string;
+}) {
+  const { courseName, grade, totalWeeks, lessonsPerWeek, chapterLessonPlans, startDate } = params;
+  
+  const totalLessons = chapterLessonPlans.reduce((sum, ch) => sum + ch.lessons.length, 0);
+  const availableSlots = totalWeeks * lessonsPerWeek;
+  
+  return `You are a curriculum scheduler creating a realistic learning timeline.
+
+Course Details:
+- Name: ${courseName}
+- Grade: ${grade}
+- Total Duration: ${totalWeeks} weeks
+- Target Lessons/Week: ${lessonsPerWeek}
+- Total Lessons: ${totalLessons}
+- Available Slots: ${availableSlots}
+${startDate ? `- Start Date: ${startDate}` : ''}
+
+Chapter Lesson Plans:
+${JSON.stringify(chapterLessonPlans, null, 2)}
+
+Your Task - Create Optimal Schedule:
+
+1. ANALYZE CONSTRAINTS:
+   - Distribute ${totalLessons} lessons across ${totalWeeks} weeks
+   - Target ${lessonsPerWeek} lessons per week (can vary ±1 for better flow)
+   - Maintain chapter sequence (don't skip ahead)
+   - Balance cognitive load (avoid heavy weeks)
+
+2. SCHEDULING PRINCIPLES:
+   - Keep related lessons within the same week when possible
+   - Allow breathing room for complex topics
+   - Insert review/consolidation weeks if needed
+   - Consider assessment timing (end of chapters)
+   - Leave final week(s) for review and catch-up
+
+3. OUTPUT SCHEDULE:
+   - Assign each lesson to a specific week (1-${totalWeeks})
+   ${startDate ? '- Calculate absolute dates based on start date' : '- Use relative week numbers'}
+   - Flag any overflow (if lessons exceed available slots)
+   - Provide pacing recommendations
+
+Output ONLY valid JSON (no markdown, no code blocks):
+{
+  "totalWeeks": ${totalWeeks},
+  "lessonsPerWeek": ${lessonsPerWeek},
+  "actualLessonsScheduled": <count>,
+  "overflow": <number of lessons that don't fit, or 0>,
+  "schedule": [
+    {
+      "lessonId": "lesson-id-from-input",
+      "chapterId": "chapter-id",
+      "chapterTitle": "Chapter title",
+      "lessonTitle": "Lesson title",
+      "week": <1-${totalWeeks}>,
+      ${startDate ? '"date": "YYYY-MM-DD",' : ''}
+      "durationMin": <from input>,
+      "sequenceNumber": <overall order across all chapters>
+    }
+  ],
+  "weekSummary": [
+    {
+      "week": 1,
+      "lessonCount": <number>,
+      "totalMinutes": <sum>,
+      "chapters": ["chapter-1", "chapter-2"]
+    }
+  ],
+  "recommendations": ["Pacing suggestion 1", "Consider review week after week 8", "etc."]
+}`;
+}
+

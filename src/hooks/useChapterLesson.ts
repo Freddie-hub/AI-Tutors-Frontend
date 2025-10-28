@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { auth } from '@/lib/firebase';
 import type { CourseChapter } from '@/lib/types';
 
 // Lesson type from LessonContext
@@ -27,7 +28,16 @@ export function useChapterLesson(courseId: string, chapterId: string) {
         setIsLoadingChapter(true);
         setError(null);
 
-        const response = await fetch(`/api/courses/${courseId}/chapter/${chapterId}`);
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) {
+          throw new Error('Not authenticated');
+        }
+
+        const response = await fetch(`/api/courses/${courseId}/chapter/${chapterId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
         
         if (!response.ok) {
           throw new Error('Failed to fetch chapter');
@@ -60,8 +70,16 @@ export function useChapterLesson(courseId: string, chapterId: string) {
       setIsGeneratingLesson(true);
       setError(null);
 
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
       const response = await fetch(`/api/courses/${courseId}/chapter/${chapterId}/generate`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
@@ -82,8 +100,16 @@ export function useChapterLesson(courseId: string, chapterId: string) {
     if (!chapter || !lesson) return;
 
     try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
       const response = await fetch(`/api/courses/${courseId}/chapter/${chapterId}/complete`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {

@@ -175,3 +175,99 @@ export interface GeneratedCourseTOC {
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   chapters: CourseChapter[];
 }
+
+// Lesson Planning (Agent 2) types
+export interface PlannedLesson {
+  id: string;
+  courseId: string;
+  chapterId: string;
+  order: number; // Order within chapter
+  globalOrder?: number; // Order across entire course
+  
+  // Lesson details
+  title: string;
+  subject: string;
+  strandId?: string;
+  strandName?: string;
+  topics: string[];
+  learningObjectives: string[];
+  
+  // Depth and timing
+  depth: 'intro' | 'intermediate' | 'proficient';
+  targetDurationMin: number;
+  suggestedHomeworkMin?: number;
+  
+  // Prerequisites and dependencies
+  prerequisites?: string[];
+  
+  // Assessment and activities
+  assessmentAnchors?: string[];
+  keyActivities?: string[];
+  realWorldContext?: string;
+  
+  // Scheduling
+  plannedWeek?: number;
+  plannedDate?: string;
+  
+  // Status tracking
+  status: 'planned' | 'generating' | 'generated' | 'published' | 'completed';
+  contentId?: string; // Link to generated lesson content
+  
+  // Timestamps
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  generatedAt?: string | Date;
+  completedAt?: string | Date;
+}
+
+export interface ChapterLessonPlan {
+  chapterId: string;
+  chapterTitle: string;
+  totalEstimatedMinutes: number;
+  recommendedWeeks: number;
+  lessons: Array<Omit<PlannedLesson, 'courseId' | 'createdAt' | 'updatedAt' | 'status' | 'contentId'>>;
+}
+
+export interface LessonScheduleEntry {
+  lessonId: string;
+  chapterId: string;
+  chapterTitle: string;
+  lessonTitle: string;
+  week: number;
+  date?: string;
+  durationMin: number;
+  sequenceNumber: number;
+}
+
+export interface WeekSummary {
+  week: number;
+  lessonCount: number;
+  totalMinutes: number;
+  chapters: string[];
+}
+
+export interface CourseLessonSchedule {
+  courseId: string;
+  totalWeeks: number;
+  lessonsPerWeek: number;
+  actualLessonsScheduled: number;
+  overflow: number;
+  schedule: LessonScheduleEntry[];
+  weekSummary: WeekSummary[];
+  recommendations?: string[];
+  createdAt: string | Date;
+}
+
+export interface LessonPlanningJob {
+  id: string;
+  courseId: string;
+  userId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress: number; // 0-100
+  currentStep?: string;
+  chaptersPlanned: number;
+  totalChapters: number;
+  error?: string;
+  createdAt: string | Date;
+  completedAt?: string | Date;
+}
