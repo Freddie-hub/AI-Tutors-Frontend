@@ -40,10 +40,14 @@ export const DialogHeader = ({
 );
 DialogHeader.displayName = "DialogHeader";
 
-export const DialogTitle = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLHeadingElement>) => (
-  <h2 className={cn("text-xl font-semibold", className)} {...props} />
-);
-DialogTitle.displayName = "DialogTitle";
+export const DialogTitle = React.forwardRef<
+  HTMLHeadingElement,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn("text-xl font-semibold", className)}
+    {...props}
+  />
+));
+DialogTitle.displayName = DialogPrimitive.Title.displayName;

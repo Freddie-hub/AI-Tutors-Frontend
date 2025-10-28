@@ -13,11 +13,11 @@ export function CourseHeader({
 }: CourseHeaderProps) {
   return (
     <div
-      className="relative w-full h-48 rounded-2xl overflow-hidden mb-6 flex items-center justify-center text-center"
+      className="relative w-full h-48 rounded-2xl overflow-hidden mb-6 flex items-center justify-center text-center border border-white/10"
       style={{
         backgroundImage: backgroundUrl
           ? `url(${backgroundUrl})`
-          : "linear-gradient(to right, #3b82f6, #06b6d4)",
+          : "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)",
       }}
     >
       <div className="absolute inset-0 bg-black/40" />
