@@ -8,13 +8,12 @@ import TeacherOverview from "./TeacherOverview";
 import UpskillOverview from "./UpskillOverview";
 
 export default function Fields() {
-  // Optional intro text
   const [showThinking, setShowThinking] = useState(false);
   const [showHeadline, setShowHeadline] = useState(false);
   const [dots, setDots] = useState("");
   const headlineRef = useRef<HTMLDivElement>(null);
 
-  // Animate headline after intersection
+  // Animate "thinking..." text
   useEffect(() => {
     const obs = new IntersectionObserver(
       ([entry]) => {
@@ -32,7 +31,7 @@ export default function Fields() {
     return () => obs.disconnect();
   }, []);
 
-  // Animated "thinking..." dots
+  // Animate dots (...)
   useEffect(() => {
     if (!showThinking) return;
     let i = 0;
@@ -43,7 +42,7 @@ export default function Fields() {
     return () => clearInterval(id);
   }, [showThinking]);
 
-  // Components in the field sequence
+  // Cards
   const cards = [CBCOverview, GCSEOverview, TeacherOverview, UpskillOverview];
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -59,14 +58,27 @@ export default function Fields() {
     return () => window.removeEventListener("resize", set);
   }, []);
 
+  // Precompute transforms *before rendering*
+  const transforms = cards.map((_, i) => {
+    const start = i / cards.length;
+    const end = (i + 1) / cards.length;
+    const targetScale = 1 - (cards.length - i) * 0.05;
+
+    const scale = useTransform(scrollYProgress, [start, 1], [1, targetScale]);
+    const y = useTransform(scrollYProgress, [start, end], [vh * 0.3, 0]);
+    const opacity = useTransform(scrollYProgress, [start - 0.08, start], [0, 1]);
+    const combinedOpacity = useTransform<number, number>(
+      [opacity] as unknown as MotionValue<number>[],
+      (latest: number[]) => latest[0] ?? 1
+    );
+    return { scale, y, combinedOpacity };
+  });
+
   return (
     <>
-      {/* Intro Section */}
+      {/* Intro section */}
       <section className="min-h-[50vh] bg-white flex flex-col items-center justify-center px-6 py-20 text-center">
-        <div
-          ref={headlineRef}
-          className="max-w-4xl mb-6 min-h-[80px] flex items-center justify-center"
-        >
+        <div ref={headlineRef} className="max-w-4xl mb-6 min-h-[80px] flex items-center justify-center">
           {showThinking && !showHeadline && (
             <p className="text-3xl md:text-4xl text-gray-700 italic animate-fade-in">
               thinking{dots}
@@ -75,58 +87,38 @@ export default function Fields() {
           {showHeadline && (
             <div className="animate-fade-in">
               <h1 className="text-3xl md:text-5xl font-semibold text-gray-900 whitespace-nowrap">
-                Learn at the speed of{" "}
-                <span className="italic text-gray-600">thought</span>
+                Learn at the speed of <span className="italic text-gray-600">thought</span>
               </h1>
             </div>
           )}
         </div>
         <p className="text-gray-500 mt-2 text-sm md:text-base max-w-2xl">
-          AI-personalized courses, gamified lessons, and real-time feedback to
-          elevate your skills.
+          AI-personalized courses, gamified lessons, and real-time feedback to elevate your skills.
         </p>
       </section>
 
-      {/* Main animated section */}
-      <main ref={containerRef} className="relative bg-white space-y-32">
-        {cards.map((Comp, i) => {
-          const start = i / cards.length;
-          const end = (i + 1) / cards.length;
-          const targetScale = 1 - (cards.length - i) * 0.05;
-          const scale = useTransform(scrollYProgress, [start, 1], [1, targetScale]);
-
-          const enterFrom = i === 0 ? Math.round(vh * 0.1) : vh;
-          const y = useTransform(scrollYProgress, [start, end], [enterFrom, 0]);
-          const opacity = useTransform(scrollYProgress, [start - 0.08, start], [0, 1]);
-          const deckVisibility = useTransform(scrollYProgress, [-0.001, 0, 1, 1.001], [0, 1, 1, 0]);
-
-          const combinedOpacity = useTransform<number, number>(
-            [opacity, deckVisibility] as unknown as MotionValue<number>[],
-            (latest: number[]) => (latest[0] ?? 0) * (latest[1] ?? 0)
-          );
-
-          return (
+      {/* Scroll-stacked deck */}
+      <section ref={containerRef} className="relative h-[500vh] bg-white">
+        <div className="sticky top-0 h-screen overflow-hidden flex items-center justify-center">
+          {cards.map((Comp, i) => (
             <motion.div
               key={i}
-              className="relative flex items-start justify-center pointer-events-none"
-              style={{ zIndex: 20 + i, y, opacity: combinedOpacity }}
+              className="absolute inset-0 flex items-start justify-center"
+              style={{
+                scale: transforms[i].scale,
+                y: transforms[i].y,
+                opacity: transforms[i].combinedOpacity,
+                zIndex: 20 + i,
+              }}
             >
-              <motion.div
-                style={{
-                  scale,
-                  transformOrigin: "top center",
-                  top: `calc(-6vh + ${i * 28}px)`,
-                }}
-                className="relative w-full max-w-[1200px] mx-auto px-6 pointer-events-auto"
-              >
+              <div className="w-full max-w-[1200px] mx-auto px-6">
                 <Comp />
-              </motion.div>
+              </div>
             </motion.div>
-          );
-        })}
-      </main>
+          ))}
+        </div>
+      </section>
 
-      {/* Fade-in keyframes */}
       <style jsx>{`
         @keyframes fade-in {
           from {
