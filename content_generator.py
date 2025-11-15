@@ -15,7 +15,7 @@ from docx.enum.text import WD_LINE_SPACING
 # =============================================================
 # Configuration (API unchanged)
 # =============================================================
-API_KEY = "sk-a711337268fd43c7a0afd8ca4a3247e8"
+API_KEY = ""
 MODEL = "deepseek-chat"
 BASE_URL = "https://api.deepseek.com/v1/chat/completions"
 
