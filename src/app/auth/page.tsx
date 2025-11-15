@@ -195,8 +195,6 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Learning.ai</h1>
-          <p className="text-lg text-gray-600 mb-8">Learn anything, anytime, anywhere.</p>
           <h2 className="text-2xl font-semibold text-gray-800">
             {isSignup ? 'Create your account' : 'Welcome back'}
           </h2>

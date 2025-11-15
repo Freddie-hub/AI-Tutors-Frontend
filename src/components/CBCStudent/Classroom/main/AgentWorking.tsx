@@ -14,6 +14,7 @@ const agentLabel: Record<string, string> = {
   writer: 'Writing lesson content…',
   assembler: 'Assembling final lesson…',
   qa: 'Quality checking…',
+  qa2: 'Finalizing content…',
 };
 
 export default function AgentWorking({ agent, note }: Props) {
